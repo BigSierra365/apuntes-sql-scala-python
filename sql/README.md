@@ -551,17 +551,6 @@ A partir del enunciado identifiqué que para asegurar una rejilla continua sin h
 
 ---
 
-```python
-# Let's inspect customers and suppliers data in the database / sources
-import re
-
-# We have customers and suppliers insert statements in the context
-# Let's verify if there are any nulls or special cases
-print("Python interpreter ready.")
-
-
-```
-
 ### Pregunta 10 — Mapa de países: clientes frente a proveedores
 
 Expansión internacional quiere una única tabla que muestre, para cada país en el que la compañía tiene presencia, cuántos clientes y cuántos proveedores hay. Deben aparecer los países que solo tienen clientes, los que solo tienen proveedores y los que tienen ambos.
@@ -612,36 +601,111 @@ A partir del enunciado identifiqué que la coexistencia de países exclusivos de
 ![Resultado pregunta 10](images/p10.png)
 
 ---
+## Sección 4. Operadores de conjunto
 
 ### Pregunta 11 — Directorio unificado de contactos
-**Enunciado:** Una sola tabla con contactos de clientes, proveedores y empleados: origen, nombre de contacto en mayúsculas, organización, ciudad y país. Ordenado por origen y país.
-**Técnicas:** `UNION ALL`, `UPPER()`, concatenación con `||`, literales como columna
+
+Sistemas va a migrar el CRM y necesita una exportación única con todos los contactos de la compañía, vengan de donde vengan. Construye una sola tabla que reúna los contactos de clientes, los de proveedores y los empleados. Cada fila debe indicar el origen ('CLIENTE', 'PROVEEDOR', 'EMPLEADO'), el nombre de la persona de contacto en mayúsculas, la organización a la que pertenece, la ciudad y el país. Para los empleados, la organización es el literal 'NORTHWIND TRADERS' y el nombre de contacto se forma concatenando nombre y apellidos. Ordena por origen y luego por país.
+
+**Columnas esperadas:** `origen`, `contacto`, `organizacion`, `ciudad`, `pais`
+
+> **Pista:** Las tres consultas deben devolver el mismo número de columnas, en el mismo orden y con tipos compatibles. Razona por qué aquí conviene `UNION ALL` y no `UNION`: ¿qué pasaría si un cliente y un proveedor compartieran nombre de contacto y ciudad?
+> 
+> 
+
+* **Lo que se pide:** Consolidar en un único directorio maestro los contactos de clientes, proveedores y empleados con su procedencia, nombre en mayúsculas, empresa, ciudad y país, ordenado por origen y país.
+* **Técnicas:** `UNION ALL`, `UPPER()`, concatenación con `||` o `CONCAT()`, literales como columna.
 
 ```sql
+-- Directorio consolidado de clientes, proveedores y empleados para migración de CRM
+SELECT 'CLIENTE' AS origen,
+       UPPER(contact_name) AS contacto,
+       company_name AS organizacion,
+       city AS ciudad,
+       country AS pais
+FROM customers
+
+UNION ALL
+
+SELECT 'PROVEEDOR' AS origen,
+       UPPER(contact_name) AS contacto,
+       company_name AS organizacion,
+       city AS ciudad,
+       country AS pais
+FROM suppliers
+
+UNION ALL
+
+SELECT 'EMPLEADO' AS origen,
+       UPPER(first_name || ' ' || last_name) AS contacto,
+       'NORTHWIND TRADERS' AS organizacion,
+       city AS ciudad,
+       country AS pais
+FROM employees
+
+ORDER BY origen, pais;
 
 ```
 
-![Resultado pregunta 11](img/p11.png)
-
 **Explicación:**
--
--
+* Apilamos verticalmente los registros de tres tablas independientes (`customers`, `suppliers` y `employees`) mediante el operador de conjunto `UNION ALL`, manteniendo estrictamente el mismo esquema de 5 columnas en cada consulta.
+* Homogeneizamos el texto convirtiendo los nombres a mayúsculas con `UPPER()` y uniendo el nombre y apellido del personal interno mediante `first_name || ' ' || last_name`.
+* Introducimos constantes alfanuméricas fijas en la cláusula `SELECT` para tipificar el origen del registro y asignar `'NORTHWIND TRADERS'` a la plantilla de empleados.
+* **Tip (`UNION ALL` vs `UNION`):** `UNION` realiza una operación costosa de ordenación y filtrado en memoria para eliminar registros idénticos. `UNION ALL` preserva la totalidad de los datos sin alterar filas legítimas y resulta óptimo en rendimiento.
+* **Tip (Nombres de columnas en `UNION`):** Los alias definidos en el primer bloque `SELECT` determinan las cabeceras finales de todo el conjunto de resultados; los alias declarados en las consultas subsiguientes son ignorados por el motor relacional.
+* ⚠️ **Trampa técnica:** Alterar el orden posicional de las columnas entre las consultas (por ejemplo, invertir `ciudad` y `pais` en una de ellas) mezclará la información sin arrojar error si comparten el tipo texto; además, emplear `UNION` en vez de `UNION ALL` provocaría la pérdida silenciosa de registros si existieran dos personas homónimas que compartiesen la misma ciudad dentro de una entidad.
+
+**Comentario:**
+A partir del enunciado identifiqué la necesidad de consolidar tres entidades distintas en una estructura tabular uniforme de cinco columnas. Construí tres bloques `SELECT` proyectando los literales de procedencia ('CLIENTE', 'PROVEEDOR', 'EMPLEADO') y formateando los nombres con `UPPER()`, concatenando nombre y apellidos en los empleados. Enlacé los tres bloques con `UNION ALL` para evitar el coste innecesario de deduplicación y asegurar que ningún contacto fuera descartado. Finalmente, definí el ordenamiento global con `ORDER BY origen, pais` para catalogar la salida por procedencia y mercado geográfico.
+
+![Resultado pregunta 11](images/p11.png)
 
 ---
 
 ### Pregunta 12 — Mercados con desequilibrio
-**Enunciado:** a) Países con clientes pero ningún proveedor. b) Países con clientes y proveedores a la vez. Dos consultas, ambas ordenadas alfabéticamente.
-**Técnicas:** `EXCEPT`, `INTERSECT`
+
+Compras y Ventas mantienen una discusión recurrente: ¿en qué países vendemos sin tener proveedor local, y en cuáles coincidimos? Resuelve las dos preguntas en dos consultas independientes: **a)** Países donde hay clientes pero **ningún** proveedor. **b)** Países donde hay **a la vez** clientes y proveedores. Ordena ambos resultados alfabéticamente.
+
+**Columnas esperadas:** `pais`
+
+> **Pista:** Los operadores de conjunto eliminan duplicados automáticamente, a diferencia de `UNION ALL`. Compara el resultado del apartado (a) con el que obtendrías usando un `LEFT JOIN ... WHERE ... IS NULL`: llegan al mismo sitio por caminos distintos, y conviene que sepas escribir los dos.
+> 
+> 
+
+* **Lo que se pide:** Dos consultas separadas que aíslen, mediante teoría de conjuntos, los países donde existen clientes pero no proveedores (diferencia de conjuntos) y los países donde coinciden ambos perfiles (intersección), ordenados alfabéticamente.
+* **Técnicas:** `EXCEPT`, `INTERSECT`
 
 ```sql
+-- a) Países donde hay clientes pero ningún proveedor
+SELECT country AS pais
+FROM customers
+EXCEPT
+SELECT country
+FROM suppliers
+ORDER BY pais;
+
+-- b) Países donde hay a la vez clientes y proveedores
+SELECT country AS pais
+FROM customers
+INTERSECT
+SELECT country
+FROM suppliers
+ORDER BY pais;
 
 ```
 
-![Resultado pregunta 12](img/p12.png)
-
 **Explicación:**
--
--
+* En el apartado (a), `EXCEPT` realiza una resta conjuntista: toma los países de `customers` y suprime todos aquellos que figuran en `suppliers`. Su alternativa relacional directa es un anti-join (`FROM customers c LEFT JOIN suppliers s ON c.country = s.country WHERE s.country IS NULL`).
+* En el apartado (b), `INTERSECT` extrae la intersección pura: devuelve únicamente los países que coinciden simultáneamente en los dos conjuntos.
+* **Tip (Deduplicación implícita):** A diferencia de `UNION ALL`, tanto `EXCEPT` como `INTERSECT` eliminan registros duplicados automáticamente sin necesidad de especificar `DISTINCT`.
+* **Tip (`ORDER BY` global):** La cláusula `ORDER BY` se coloca siempre al final de la sentencia y ordena el conjunto ya procesado y consolidado; los alias definidos en la primera consulta son los válidos para la ordenación.
+* ⚠️ **Trampa técnica:** `EXCEPT` no es una operación conmutativa ($A - B \neq B - A$): si colocas `suppliers` arriba y `customers` abajo, obtendrás los países con proveedores que no compran (como Japón o Países Bajos), invirtiendo la lógica del negocio; asimismo, intentar poner un `ORDER BY` intermedio antes del operador de conjunto provocará un error de sintaxis en PostgreSQL.
+
+**Comentario:**
+A partir del enunciado identifiqué la necesidad de resolver dos escenarios geográficos mediante operaciones de teoría de conjuntos independientes sobre el campo `country`. Para el apartado (a), implementé `EXCEPT` restando los países de `suppliers` a los de `customers` para aislar los mercados donde vendemos sin contar con aprovisionamiento local. Para el apartado (b), utilicé `INTERSECT` entre ambas tablas para rescatar únicamente los territorios en los que coinciden ambas entidades. Aproveché la eliminación automática de duplicados inherente a estos operadores y cerré cada consulta con `ORDER BY pais` para entregar las listas ordenadas alfabéticamente.
+
+![Resultado pregunta 12](images/p12_1.png)
+![Resultado pregunta 12](images/p12_2.png)
 
 ---
 
