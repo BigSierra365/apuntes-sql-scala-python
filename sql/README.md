@@ -178,41 +178,40 @@ UPPER(texto)  ||  ' - '  ||  otro_texto        -- concatenación con ||
 
 # 3. Ejercicios
 ## Sección 1. Fundamentos: filtrado y agregación
-### Pregunta 1 — Catálogo comercial activo
 
-El equipo de ventas prepara la tarifa de la próxima campaña y necesita el catálogo depurado.
+### Pregunta 1 — Catálogo comercial activo
 
 Obtén los productos que **no** están descatalogados y cuyo precio unitario esté entre 10 y 50 euros, ambos incluidos. Muestra el nombre del producto y su precio redondeado a dos decimales, ordenado de mayor a menor precio.
 
 **Columnas esperadas:** `producto`, `precio`
 
-- **Pista:** la columna `discontinued` es de tipo `integer`, no booleana. Un producto activo tiene valor 0.
+> **Pista:** La columna `discontinued` es de tipo `integer`, no booleana. Un producto activo tiene valor 0.
+> 
+> 
 
 * **Lo que se pide:** Productos no descatalogados con precio unitario entre 10 y 50€ (ambos incluidos). Nombre y precio redondeado a 2 decimales, ordenado de mayor a menor precio.
-
 * **Técnicas:** `WHERE`, `BETWEEN`, `ROUND()`, alias de columna, `ORDER BY`
 
 ```sql
+-- Productos activos con precio unitario entre 10 y 50 euros
 SELECT product_name AS producto,
        ROUND(unit_price::numeric, 2) AS precio
 FROM products
 WHERE discontinued = 0
   AND unit_price BETWEEN 10 AND 50
 ORDER BY precio DESC;
+
 ```
 
 **Explicación:**
-
-* Filtramos los productos activos con la condición `discontinued = 0`, atendiendo a que el tipo de dato es un entero de control y no un booleano.
-
-* Acotamos el rango comercial mediante `BETWEEN 10 AND 50`, operador inclusivo que contempla ambos extremos.
-
+* Filtramos los productos comerciales activos exigiendo `discontinued = 0`, considerando que el catálogo almacena este estado como entero numérico y no como booleano.
+* Acotamos el rango comercial mediante el operador inclusivo `BETWEEN 10 AND 50`, que contempla ambos límites.
 * **Tip (Casteo a `::numeric`):** Las columnas con valores de precio vienen declaradas en tipo `real`, por lo que es necesario castear con `::numeric` antes del redondeo para no propagar imprecisiones de coma flotante.
-
 * **Tip (Alias en `ORDER BY`):** PostgreSQL permite reutilizar directamente el alias de columna asignado (`precio`) dentro de la cláusula `ORDER BY` para resolver la ordenación descendente.
+* ⚠️ **Trampa técnica:** La columna `unit_price` es de tipo `real` (coma flotante de precisión simple); si omites el casteo explícito `::numeric`, PostgreSQL arrojará un error de ejecución (`function round(real, integer) does not exist`) porque la sobrecarga de dos argumentos de `ROUND()` exige obligatoriamente una entrada de tipo `numeric`.
 
 **Comentario:**
-Leyendo el enunciado identifiqué que se debían filtrar únicamente referencias comerciales activas, traduciéndolo en `discontinued = 0` según la pista técnica sobre el tipo entero. A continuación acoté el rango monetario solicitado mediante `BETWEEN 10 AND 50`, garantizando la inclusión de ambos extremos.Apliqué `ROUND(unit_price::numeric, 2)` con alias `precio` para cumplir con el formato monetario exigido y el casteo preventivo de coma flotante. Por último, utilicé `ORDER BY precio DESC` para presentar el catálogo ordenado de mayor a menor coste.
+Leyendo el enunciado identifiqué que se debían filtrar únicamente referencias comerciales activas, traduciéndolo en `discontinued = 0` según la pista técnica sobre el tipo entero. A continuación acoté el rango monetario solicitado mediante `BETWEEN 10 AND 50`, garantizando la inclusión de ambos extremos. Apliqué `ROUND(unit_price::numeric, 2)` con alias `precio` para cumplir con el formato monetario exigido y el casteo preventivo de coma flotante. Por último, utilicé `ORDER BY precio DESC` para presentar el catálogo ordenado de mayor a menor coste tal como solicitaba el negocio.
 
 ![Resultado pregunta 1](images/p01.png)
 
@@ -220,19 +219,17 @@ Leyendo el enunciado identifiqué que se debían filtrar únicamente referencias
 
 ### Pregunta 2 — Concentración geográfica de la cartera
 
-Dirección quiere saber en qué mercados está realmente concentrada la base de clientes antes de decidir dónde abrir delegación.
-
-Cuenta cuántos clientes hay en cada país y muestra únicamente aquellos países con **5 o más clientes**, ordenados de mayor a menor. Indica también cuántas ciudades distintas hay en cada uno de esos países.
+Dirección quiere saber en qué mercados está realmente concentrada la base de clientes antes de decidir dónde abrir delegación. Cuenta cuántos clientes hay en cada país y muestra únicamente aquellos países con **5 o más clientes**, ordenados de mayor a menor. Indica también cuántas ciudades distintas hay en cada uno de esos países.
 
 **Columnas esperadas:** `pais`, `num_clientes`, `num_ciudades`
 
-- **Pista:** `HAVING` filtra después de agrupar; `WHERE` filtra antes. Aquí la condición se aplica sobre el resultado de un conteo, así que solo una de las dos cláusulas sirve.
-- **Lo que se pide:** Países con 5 o más clientes, recuento total de clientes por país y recuento de ciudades únicas, ordenados descendentemente por volumen de clientes.
-- **Técnicas:** `GROUP BY`, `COUNT()`, `COUNT(DISTINCT ...)`, `HAVING`
+> **Pista:** `HAVING` filtra después de agrupar; `WHERE` filtra antes. Aquí la condición se aplica sobre el resultado de un conteo, así que solo una de las dos cláusulas sirve.
 
+* **Lo que se pide:** Países con 5 o más clientes, recuento total de clientes por país y recuento de ciudades únicas, ordenados descendentemente por volumen de clientes.
+* **Técnicas:** `GROUP BY`, `COUNT()`, `COUNT(DISTINCT ...)`, `HAVING`
 
-**Solución:**
 ```sql
+-- Países con 5 o más clientes y recuento de ciudades únicas
 SELECT country AS pais,
        COUNT(customer_id) AS num_clientes,
        COUNT(DISTINCT city) AS num_ciudades
@@ -240,22 +237,21 @@ FROM customers
 GROUP BY country
 HAVING COUNT(customer_id) >= 5
 ORDER BY num_clientes DESC;
+
 ```
 
 **Explicación:**
-- Agrupamos la tabla customers por country para consolidar las métricas territoriales[cite: 1, 3].
-- COUNT(customer_id) calcula el número de cuentas registradas en cada país[cite: 1, 3].
-- COUNT(DISTINCT city) evita contar dos veces la misma ciudad cuando contiene varios clientes (como ocurre con Londres o São Paulo)[cite: 1, 3].
-- Tip (WHERE vs HAVING): WHERE filtra registros individuales antes de agrupar; HAVING filtra métricas agregadas después de aplicar el GROUP BY. Al filtrar por un recuento (COUNT >= 5), WHERE arrojaría un error de sintaxis.
-- Tip (COUNT vs COUNT DISTINCT): COUNT(columna) cuenta cuántos registros no nulos existen; COUNT(DISTINCT columna) evalúa el conjunto y descarta valores repetidos antes de sumar.
-  
-**Comentario:**
-- Partí agrupando la tabla `customers` por `country` al requerir el enunciado métricas consolidadas por territorio.
-- Calculé el volumen con `COUNT(customer_id)` y agregué DISTINCT sobre city para no duplicar ciudades con múltiples clientes.
-- Para cumplir la condición de negocio de 5 o más clientes descarté WHERE y apliqué HAVING directamente sobre el agregado.
-- Cerré con ORDER BY num_clientes DESC para ordenar de mayor a menor concentración geográfica como exigía la petición.
+* Agrupamos la tabla `customers` por `country` para consolidar las métricas territoriales de la cartera.
+* `COUNT(customer_id)` calcula el número de clientes registrados en cada país.
+* `COUNT(DISTINCT city)` evita contar dos veces la misma ciudad cuando contiene múltiples clientes (como Londres o São Paulo).
+* **Tip (WHERE vs HAVING):** `WHERE` filtra registros individuales antes de agrupar; `HAVING` filtra métricas agregadas después de aplicar el `GROUP BY`. Al condicionar sobre una agregación (`COUNT >= 5`), `WHERE` arrojaría un error de sintaxis.
+* **Tip (COUNT vs COUNT DISTINCT):** `COUNT(columna)` cuenta cuántos registros no nulos existen; `COUNT(DISTINCT columna)` evalúa el conjunto y descarta valores repetidos antes de computar.
+* ⚠️ **Trampa técnica:** Intentar filtrar el conteo dentro del `WHERE` (`WHERE COUNT(...) >= 5`) provocará un error de ejecución inmediato (`aggregate functions are not allowed in WHERE`), ya que `WHERE` opera fila a fila antes de conformar los grupos; además, omitir el `DISTINCT` dentro de `COUNT(city)` falseará el reporte al contabilizar cada fila de cliente como si fuera una ciudad distinta en lugar de aislar las localidades geográficas únicas.
 
-![Resultado pregunta 2](imgages/p02.png)
+**Comentario:**
+A partir del enunciado identifiqué que se debían consolidar métricas por territorio, agrupando la tabla `customers` mediante `GROUP BY country`. Calculé el volumen de cuentas con `COUNT(customer_id)` y apliqué `COUNT(DISTINCT city)` para no duplicar ciudades con múltiples clientes. Dado que el requisito de negocio exigía filtrar países con 5 o más clientes, descarté `WHERE` y apliqué `HAVING COUNT(customer_id) >= 5` sobre el agregado. Finalmente, ordené con `ORDER BY num_clientes DESC` para presentar la concentración geográfica de mayor a menor como requería la petición.
+
+![Resultado pregunta 2](images/p02.png)
 
 ---
 
@@ -265,9 +261,12 @@ Localiza los productos activos cuyas unidades en stock sean **inferiores o igual
 
 **Columnas esperadas:** `producto`, `stock`, `nivel_reposicion`, `pedido_a_proveedor`, `situacion`
 
-* **Lo que se pide:** Productos en riesgo de rotura de stock (`discontinued = 0` y `stock <= nivel_reposicion`) con una columna condicional de alerta.
+> **Pista:** Comprueba antes si alguna de estas columnas admite nulos. Un `NULL` en una comparación no devuelve ni verdadero ni falso, y la fila desaparece del resultado sin avisarte.
+> 
+> 
 
-* **Técnicas:** `WHERE` con comparación entre columnas, `CASE WHEN`
+* **Lo que se pide:** Productos en riesgo de rotura de stock (`discontinued = 0` y `stock <= nivel_reposicion`) con una columna condicional de alerta.
+* **Técnicas:** `WHERE` con comparación entre columnas, `CASE WHEN`.
 
 ```sql
 -- Productos activos en riesgo de stock y clasificación de alerta
@@ -287,15 +286,15 @@ WHERE discontinued = 0
 
 **Explicación:**
 * Comparamos dos columnas numéricas dentro del `WHERE` (`units_in_stock <= reorder_level`) junto al filtro de catálogo activo `discontinued = 0`.
-
 * La estructura `CASE WHEN` bifurca el estado: evalúa primero la condición de stock nulo para etiquetar `'CRÍTICO'` y deriva cualquier otro valor residual a `'AVISO'`.
-
 * **Tip (Lógica trivaluada y NULLs):** En SQL, cualquier comparación contra `NULL` resulta en `UNKNOWN` (falso para el `WHERE`), omitiendo la fila silenciosamente. Tras revisar `products`, estas columnas no contienen nulos; en tablas con nulos potenciales se blindaría usando `COALESCE(units_in_stock, 0) <= COALESCE(reorder_level, 0)`.
+* **Tip (Evaluación secuencial de CASE):** `CASE WHEN` evalúa de arriba a abajo y se detiene en la primera coincidencia que encuentra, por lo que las condiciones más restrictivas (como el cero exacto) siempre deben declararse antes que las genéricas o el `ELSE`.
+* ⚠️ **Trampa técnica:** Si alguna de las columnas comparadas (`units_in_stock` o `reorder_level`) contiene un `NULL`, la comparación lógica devuelve `UNKNOWN` y PostgreSQL descarta la fila silenciosamente sin arrojar ningún error de sintaxis; asimismo, olvidar la cláusula `ELSE` en un `CASE WHEN` hace que cualquier registro que no cumpla la primera condición pase a valer `NULL` automáticamente en vez de `'AVISO'`.
 
 **Comentario:**
 A partir del enunciado, filtré en `WHERE` las referencias activas mediante `discontinued = 0` y el riesgo de inventario comparando directamente `units_in_stock <= reorder_level`. Verifiqué previamente que ninguna de estas columnas contuviera valores nulos para evitar descartes accidentales por la lógica trivaluada de SQL. Seguidamente, categoricé la severidad mediante la estructura condicional `CASE WHEN units_in_stock = 0 THEN 'CRÍTICO' ELSE 'AVISO' END` asignándole el alias `situacion`. Finalmente, proyecté las cinco columnas solicitadas con sus correspondientes nombres comerciales de negocio.
 
-![Resultado pregunta 2](imgages/p03.png)
+![Resultado pregunta 2](images/p03.png)
 
 ---
 
@@ -307,10 +306,12 @@ Para los productos suministrados por empresas de **Italia, Francia o España**, 
 
 **Columnas esperadas:** `producto`, `categoria`, `proveedor`, `pais`, `ciudad`
 
+> **Pista:** `products` no se une directamente con nada geográfico. Mira el diagrama: la información de país está en `suppliers`.
+> 
+> 
+
 * **Lo que se pide:** Ficha de productos suministrados desde Italia, Francia o España con su categoría, nombre de proveedor y ubicación geográfica, ordenados por país y luego por producto.
-
-* **Técnicas:** `INNER JOIN` de tres tablas, alias de tabla, `WHERE ... IN`
-
+* **Técnicas:** `INNER JOIN` de tres tablas, alias de tabla, `WHERE ... IN`.
 
 ```sql
 SELECT p.product_name AS producto,
@@ -328,17 +329,15 @@ ORDER BY s.country, p.product_name;
 
 **Explicación:**
 * Usamos `products` como tabla central para cruzar simultáneamente con `categories` (vía `category_id`) y con `suppliers` (vía `supplier_id`).
-
 * Filtramos geográficamente en la tabla del proveedor mediante `WHERE s.country IN ('Italy', 'France', 'Spain')`, ya que `products` no contiene datos de localización.
-
 * **Tip (`INNER JOIN` múltiple):** Cada cláusula `INNER JOIN` requiere su propia condición `ON`; se evalúan de forma acumulativa conservando únicamente las filas que coincidan en todas las tablas.
-
-* **Tip (`IN` vs `OR`):** La cláusula `IN (...)` simplifica la lectura y optimización del código frente a encadenar comparaciones con `s.country = 'Italy' OR s.country = 'France'...`.
+* **Tip (`IN` vs `OR`):** La cláusula `IN (...)` simplifica la lectura y optimización del código frente a encadenar comparaciones con `s.country = 'Italy' OR s.country = 'France'...'`.
+* ⚠️ **Trampa técnica:** La tabla `products` no contiene columnas geográficas; intentar filtrar por `WHERE country IN (...)` sin calificar el alias (`s.country`) o buscarlo en la tabla incorrecta causará un error de columna inexistente (`column "country" does not exist`). Además, los literales de texto en SQL distinguen mayúsculas de minúsculas (*case-sensitive*), por lo que escribir `'spain'` o `'italy'` en minúsculas devolvería un conjunto vacío sin avisar.
 
 **Comentario:**
-Al revisar el enunciado observé que la información geográfica no está en `products` sino en `suppliers`, lo que obligaba a cruzar tres tablas tomando `products` como eje central. Relacioné `products` con `categories` y `suppliers` mediante dos `INNER JOIN` sucesivos empleando sus respectivas claves ajenas y alias de tabla. Añadí el filtro `WHERE s.country IN ('Italy', 'France', 'Spain')` para limitar los países proveedores demandados de forma limpia. Por último, ordené por `s.country` y `p.product_name` para estructurar la salida alfabéticamente por territorio y catálogo como requería el enunciado.
+Al revisar el enunciado observé que la información geográfica no reside en `products` sino en `suppliers`, lo que obligaba a cruzar tres tablas tomando `products` como eje central. Relacioné `products` con `categories` y `suppliers` mediante dos `INNER JOIN` sucesivos empleando sus respectivas claves ajenas y alias de tabla. Añadí el filtro `WHERE s.country IN ('Italy', 'France', 'Spain')` para limitar los países proveedores demandados de forma limpia. Por último, ordené por `s.country` y `p.product_name` para estructurar la salida alfabéticamente por territorio y catálogo como requería el enunciado.
 
-![Resultado pregunta 4](img/p04.png)
+![Resultado pregunta 4](images/p04.png)
 
 ---
 
@@ -348,8 +347,9 @@ Atención al cliente recibe una reclamación sobre el pedido **10248** y necesit
 
 **Columnas esperadas:** `cliente`, `fecha_pedido`, `producto`, `precio_unitario`, `cantidad`, `descuento`, `importe_linea`
 
-* **Lo que se pide:** Detalle de líneas del pedido 10248 con datos del cliente, fecha del pedido, producto adquirido y cálculo del importe neto exacto por línea redondeado a 2 decimales.
+> **Pista:** `orders` y `order_details` comparten el nombre de columna `order_id`; `order_details` y `products` comparten `product_id`. Cuando los nombres coinciden a ambos lados, `USING(columna)` es más limpio que `ON a.col = b.col` y además evita que la columna aparezca duplicada en el resultado.
 
+* **Lo que se pide:** Detalle de líneas del pedido 10248 con datos del cliente, fecha del pedido, producto adquirido y cálculo del importe neto exacto por línea redondeado a 2 decimales.
 * **Técnicas:** `INNER JOIN` con `USING`, aritmética entre columnas, `ROUND()`
 
 ```sql
@@ -371,17 +371,15 @@ WHERE o.order_id = 10248;
 
 **Explicación:**
 * Se vincula `orders` con `customers` para extraer el nombre de la empresa compradora y la fecha, con `order_details` para las unidades y precios facturados, y con `products` para obtener la denominación comercial de cada artículo.
-
 * El importe neto de cada línea se calcula con la expresión estandarizada `precio * cantidad * (1 - descuento)`.
-
 * **Tip (`USING`):** Cuando las columnas de enlace comparten el mismo nombre en ambas tablas (`order_id`, `product_id`, `customer_id`), la cláusula `USING (columna)` sustituye a `ON a.col = b.col`, evitando código redundante y duplicidad de columnas en el resultado.
-
 * **Tip (Casteo a `::numeric`):** Dado que `unit_price` y `discount` se definen originalmente como tipo `real`, el casteo `::numeric` es obligatorio antes de operar y aplicar `ROUND(..., 2)` para suprimir inconsistencias de coma flotante.
+* ⚠️ **Trampa técnica:** Si intentas ejecutar `ROUND()` directamente sobre columnas de tipo `real` sin el casteo explícito `::numeric`, PostgreSQL devolverá un error de función no encontrada (`function round(real, integer) does not exist`); además, aplicar el redondeo a destiempo o individualmente a cada factor en vez de a toda la operación de la línea alterará los centésimos del total.
 
 **Comentario:**
 A partir del enunciado identifiqué que la reconstrucción de la factura requería enlazar `orders`, `customers`, `order_details` y `products` para reunir la cabecera del pedido, los datos del cliente y el desglose de productos. Aproveché la coincidencia de nombres en las claves para aplicar `INNER JOIN ... USING(...)`, simplificando las uniones de las cuatro tablas. Implementé la fórmula acordada para `importe_linea` utilizando el casteo `::numeric` antes del `ROUND(..., 2)` para evitar fallos de precisión monetaria por el tipo `real`. Finalmente, restringí el resultado con `WHERE o.order_id = 10248` para aislar exclusivamente las líneas del pedido reclamado.
 
-![Resultado pregunta 5](img/p05.png)
+![Resultado pregunta 5](images/p05.png)
 
 ---
 
@@ -391,8 +389,9 @@ Calcula la facturación total de cada categoría durante toda la historia de la 
 
 **Columnas esperadas:** `categoria`, `num_lineas`, `num_productos`, `facturacion`
 
-* **Lo que se pide:** Agrupar el rendimiento comercial por familia de producto calculando líneas totales, productos únicos y facturación acumulada superior a 100.000€, ordenado de mayor a menor.
+> **Pista:** El `HAVING` se aplica sobre la expresión agregada completa, no sobre el alias. En PostgreSQL puedes repetir la expresión o envolver la consulta.
 
+* **Lo que se pide:** Agrupar el rendimiento comercial por familia de producto calculando líneas totales, productos únicos y facturación acumulada superior a 100.000€, ordenado de mayor a menor.
 * **Técnicas:** `INNER JOIN` de tres tablas, `GROUP BY`, `SUM()`, `COUNT(DISTINCT ...)`, `HAVING`, `ROUND()`
 
 ```sql
@@ -412,84 +411,205 @@ ORDER BY facturacion DESC;
 
 **Explicación:**
 * Se enlazan `categories`, `products` y `order_details` para asociar cada línea de venta con su respectiva categoría.
-
 * `COUNT(od.product_id)` cuenta el total de transacciones de línea generadas, mientras que `COUNT(DISTINCT od.product_id)` calcula cuántos artículos distintos de esa familia tuvieron ventas efectivas.
-
-* Se agrega la facturación monetaria aplicando la fórmula estandarizada con casteo a `::numeric` para eliminar inconsistencias de tipo flotante.
-
+* Se agrega la facturación monetaria aplicando la fórmula estandarizada con casteo a `::numeric` para eliminar inconsistencias de coma flotante del tipo `real`.
 * **Tip (`HAVING` vs alias):** Como PostgreSQL procesa `HAVING` antes de resolver los alias del `SELECT`, no se puede filtrar directamente por `HAVING facturacion > 100000`; es obligatorio repetir la función de agregación completa `SUM(...)` dentro del `HAVING`.
+* ⚠️ **Trampa técnica:** Intentar filtrar en el `HAVING` usando el alias comercial (`HAVING facturacion > 100000`) provocará un error de ejecución (`column "facturacion" does not exist`) debido al orden de evaluación lógico de SQL; asimismo, olvidar el `DISTINCT` dentro de `COUNT(DISTINCT od.product_id)` inflará la métrica de catálogo igualándola erróneamente al número total de transacciones de línea.
 
 **Comentario:**
 A partir del enunciado identifiqué que debía unir `categories`, `products` y `order_details` para vincular cada venta con su categoría comercial correspondiente. Agrupé los registros por `category_name`, extrayendo el volumen de líneas con `COUNT(od.product_id)` y la diversidad de catálogo vendido con `COUNT(DISTINCT od.product_id)`. Para obtener la facturación total acumulé las líneas con `SUM(...)` implementando el casteo monetario `::numeric` obligatorio de la práctica. Dado que el corte de 100.000€ actúa sobre el total agregado, apliqué `HAVING` repitiendo la expresión de suma y ordené el informe con `ORDER BY facturacion DESC`.
 
-![Resultado pregunta 6](img/p06.png)
+![Resultado pregunta 6](images/p06.png)
 
 ---
 
 ## Sección 3. Uniones externas, reflexivas y cruzadas
 
 ### Pregunta 7 — Clientes sin actividad comercial
-**Enunciado:** Todos los clientes con su número de pedidos y fecha de último pedido. Los clientes sin pedidos aparecen igual, con 0 y `'SIN PEDIDOS'`. Inactivos primero.
-**Técnicas:** `LEFT JOIN`, `COALESCE()`, `COUNT()` sobre columna
-*(tienes una solución de referencia en el Apéndice si te atascas)*
+
+Lista **todos** los clientes con el número de pedidos que ha realizado cada uno y la fecha de su último pedido. Los clientes sin ningún pedido deben aparecer igualmente, con un 0 en el conteo y el texto `'SIN PEDIDOS'` en lugar de la fecha. Ordena de forma que los clientes inactivos aparezcan primero.
+
+**Columnas esperadas:** `cliente`, `pais`, `num_pedidos`, `ultimo_pedido`
+
+> **Pista:** `COUNT(*)` cuenta filas, incluidas las que el `LEFT JOIN` rellenó con nulos, y te dará 1 para los clientes sin pedidos. `COUNT(columna)` ignora los nulos. Esa diferencia es exactamente el objetivo del ejercicio.
+> 
+> 
+
+* **Lo que se pide:** Listado completo de clientes incluyendo cuentas sin actividad de compra, mostrando volumen total de pedidos (0 para inactivos) y la fecha del pedido más reciente o `'SIN PEDIDOS'`, ordenado ascendentemente por actividad.
+* **Técnicas:** `LEFT JOIN`, `COUNT()` sobre columna de la tabla derecha, `COALESCE()`, `MAX()`
 
 ```sql
+-- Clientes con su volumen de pedidos y última fecha, priorizando cuentas inactivas
+SELECT c.company_name AS cliente,
+       c.country AS pais,
+       COUNT(o.order_id) AS num_pedidos,
+       COALESCE(MAX(o.order_date)::text, 'SIN PEDIDOS') AS ultimo_pedido
+FROM customers c
+LEFT JOIN orders o ON c.customer_id = o.customer_id
+GROUP BY c.company_name, c.country
+ORDER BY num_pedidos ASC;
 
 ```
 
-![Resultado pregunta 7](img/p07.png)
-
 **Explicación:**
--
--
+* Se utiliza `LEFT JOIN` para conservar el 100% de los registros de la tabla izquierda (`customers`), aun cuando no existan coincidencias en la tabla derecha (`orders`).
+* **Tip (`COUNT(columna)` vs `COUNT(*)`):** `COUNT(*)` cuenta filas físicas totales producidas tras el cruce (asignando erróneamente 1 pedido al cliente inactivo). `COUNT(o.order_id)` evalúa solo valores no nulos de la tabla derecha, computando 0 para las cuentas sin compras.
+* **Tip (`COALESCE()` y coherencia de tipos):** `COALESCE` exige que todos sus argumentos compartan el mismo tipo de dato. Por ello, convertimos la fecha resultante de `MAX(o.order_date)` a cadena con `::text` antes de asociarla al literal `'SIN PEDIDOS'`.
+* **Tip (`MAX()`):** Al aplicarse sobre tipos fecha, la función de agregación `MAX` rescata cronológicamente la operación más reciente registrada.
+* ⚠️ **Trampa técnica:** Usar `COUNT(*)` tras un `LEFT JOIN` provocará un error lógico silencioso al computar 1 pedido en lugar de 0 a las cuentas inactivas debido a la fila sintética de nulos generada por el join; asimismo, pasar directamente `MAX(o.order_date)` a `COALESCE` sin el casteo explícito `::text` arrojará un error de ejecución por incompatibilidad de tipos entre fecha y texto.
+
+**Comentario:**
+A partir del enunciado identifiqué que la exigencia de conservar clientes sin compras requería obligatoriamente un `LEFT JOIN` desde `customers` hacia `orders` en lugar de un cruce interno. Descarté `COUNT(*)` para evitar contar la fila artificial rellena con nulos generada por el join, empleando `COUNT(o.order_id)` para asegurar que los clientes inactivos arrojaran cero pedidos. Para recuperar la última compra utilicé `MAX(o.order_date)` y resolví los valores ausentes envolviendo el cálculo en `COALESCE`, casteando a `::text` para compatibilizar la fecha con la etiqueta `'SIN PEDIDOS'`. Por último, ordené con `ORDER BY num_pedidos ASC` para colocar a las cuentas inactivas en la cabecera del resultado.
+
+![Resultado pregunta 6](images/p07.png)
 
 ---
 
 ### Pregunta 8 — Organigrama de la fuerza de ventas
-**Enunciado:** Cada empleado con su nombre completo, cargo, nombre completo de su responsable y cargo del responsable. Quien no reporta a nadie: `'DIRECCIÓN GENERAL'`.
-**Técnicas:** `SELF JOIN` con `LEFT JOIN`, alias obligatorios, concatenación de texto, `COALESCE()`
+
+Recursos Humanos necesita el organigrama del departamento comercial en formato tabla. Muestra cada empleado con su nombre completo, su cargo, el nombre completo de la persona a la que reporta y el cargo de esa persona. El empleado que no reporta a nadie debe aparecer también, con el texto `'DIRECCIÓN GENERAL'` en el campo del responsable.
+
+**Columnas esperadas:** `empleado`, `cargo`, `responsable`, `cargo_responsable`
+
+> **Pista:** La misma tabla aparece dos veces en el `FROM`, así que los alias dejan de ser una comodidad y pasan a ser imprescindibles. Piensa en `emp` y `jefe` como si fueran dos tablas distintas.
+> 
+> 
+
+* **Lo que se pide:** Jerarquía organizativa de empleados relacionando a cada trabajador con su superior mediante un auto-cruce, preservando al empleado raíz sin responsable mediante un texto por defecto.
+* **Técnicas:** `SELF JOIN` con `LEFT JOIN`, alias de tabla obligatorios, concatenación de texto, `COALESCE()`
 
 ```sql
+-- Organigrama de la fuerza de ventas vinculando empleados con sus responsables
+SELECT e.first_name || ' ' || e.last_name AS empleado,
+       e.title AS cargo,
+       COALESCE(m.first_name || ' ' || m.last_name, 'DIRECCIÓN GENERAL') AS responsable,
+       m.title AS cargo_responsable
+FROM employees e
+LEFT JOIN employees m ON e.reports_to = m.employee_id;
 
 ```
 
-![Resultado pregunta 8](img/p08.png)
-
 **Explicación:**
--
--
+* Se une la tabla `employees` consigo misma asignándole dos roles diferentes: `e` actúa como el empleado subordinado y `m` como el responsable directo (*manager*).
+* El cruce se realiza mediante `LEFT JOIN` sobre `e.reports_to = m.employee_id` para garantizar que el empleado en la cúspide (cuyo `reports_to` es `NULL`) no desaparezca del resultado.
+* **Tip (`SELF JOIN` y alias obligatorios):** Al invocar la misma tabla dos veces en el `FROM`, el motor relacional no puede distinguir qué columna pertenece a quién a menos que se definan alias distintos (`e` y `m`).
+* **Tip (Concatenación y `NULL`):** En PostgreSQL el operador `||` propaga nulos: cuando un operando es nulo, toda la concatenación evalúa a `NULL`, permitiendo que `COALESCE` capture la ausencia de responsable.
+* ⚠️ **Trampa técnica:** Realizar un `INNER JOIN` en lugar de un `LEFT JOIN` expulsará de la consulta al Director General (`reports_to IS NULL`), perdiendo la cúspide de la jerarquía; además, si concatenas con la función `CONCAT(m.first_name, ' ', m.last_name)` en vez de `||`, `CONCAT` convertirá los nulos en cadenas vacías devolviendo un espacio en blanco `' '` (que no es nulo), anulando silenciosamente a `COALESCE` e impidiendo que aparezca `'DIRECCIÓN GENERAL'`.
+
+**Comentario:**
+A partir del enunciado identifiqué que la jerarquía de mandos reside en la autorreferencia de la tabla `employees`, donde `reports_to` apunta a otro `employee_id` dentro del mismo catálogo. Crucé la tabla consigo misma mediante un `SELF JOIN` apoyado en `LEFT JOIN` para asegurar que el directivo sin superior no fuera excluido del informe. Concatené los nombres y apellidos con el operador `||` para aprovechar la propagación de nulos al evaluar a la persona responsable. Finalmente, apliqué `COALESCE` sobre el nombre del responsable para sustituir el valor nulo por `'DIRECCIÓN GENERAL'` y proyecté las cuatro columnas requeridas.
+
+![Resultado pregunta 8](images/p08.png)
 
 ---
 
 ### Pregunta 9 — Rejilla de cobertura categoría × año
-**Enunciado:** Las 24 combinaciones posibles de 8 categorías × 3 años, con su facturación (0 si no hay), sin huecos. Ordenado por categoría y año.
-**Técnicas:** `CROSS JOIN` para la rejilla, `LEFT JOIN` contra datos reales, `COALESCE()`, `EXTRACT()`
+
+Control de gestión quiere una rejilla completa de facturación por categoría y año, **sin huecos**: si una categoría no vendió nada en un año concreto, debe aparecer con un 0, no desaparecer de la tabla. Genera todas las combinaciones posibles de las 8 categorías con los 3 años del histórico (24 filas) y asocia a cada combinación su facturación. Ordena por categoría y año.
+
+**Columnas esperadas:** `categoria`, `anio`, `facturacion`
+
+> **Pista:** Este es el patrón clásico para informes con huecos. Primero construyes el "esqueleto" de todas las combinaciones posibles con un `CROSS JOIN`, y solo después cuelgas los datos reales con un `LEFT JOIN`. Si lo haces al revés, las combinaciones sin datos nunca aparecerán.
+> 
+> 
+
+* **Lo que se pide:** Generar la matriz completa de 24 filas (8 categorías × 3 años del histórico: 1996, 1997 y 1998) asociando la facturación real acumulada o imputando un 0 si no hubo ventas, ordenado por categoría y año.
+* **Técnicas:** `CROSS JOIN` para generar la rejilla, `LEFT JOIN` contra los datos reales, `COALESCE()`, `EXTRACT()`.
 
 ```sql
+-- Rejilla completa categoría × año con facturación acumulada sin huecos
+WITH anios AS (
+    SELECT 1996 AS anio 
+    UNION ALL SELECT 1997 
+    UNION ALL SELECT 1998
+)
+SELECT c.category_name AS categoria,
+       a.anio,
+       COALESCE(SUM(ROUND((od.unit_price::numeric) * od.quantity * (1 - od.discount::numeric), 2)), 0) AS facturacion
+FROM categories c
+CROSS JOIN anios a
+LEFT JOIN products p ON c.category_id = p.category_id
+LEFT JOIN order_details od ON p.product_id = od.product_id
+LEFT JOIN orders o ON od.order_id = o.order_id 
+                  AND EXTRACT(YEAR FROM o.order_date) = a.anio
+GROUP BY c.category_name, a.anio
+ORDER BY c.category_name, a.anio;
 
 ```
 
-![Resultado pregunta 9](img/p09.png)
-
 **Explicación:**
--
--
+* Construimos una CTE `anios` con los valores `1996`, `1997` y `1998` y realizamos un `CROSS JOIN` contra `categories` para garantizar las 24 combinaciones teóricas base.
+* Crecemos horizontalmente hacia las ventas reales mediante `LEFT JOIN` sucesivos hacia `products`, `order_details` y `orders` para no perder las combinaciones vacías.
+* **Tip (`EXTRACT()`):** `EXTRACT(YEAR FROM fecha)` permite aislar el año numérico para cruzar directamente contra nuestra dimensión temporal `a.anio`.
+* **Tip (`COALESCE()` sobre agregados):** Cuando un grupo no tiene pedidos coincidentes, `SUM()` devuelve `NULL`; envolver la función con `COALESCE(..., 0)` sustituye la ausencia de transacciones por un valor monetario de cero.
+* ⚠️ **Trampa técnica:** La condición `EXTRACT(YEAR FROM o.order_date) = a.anio` debe colocarse obligatoriamente dentro de la cláusula `ON` del `LEFT JOIN`. Si trasladas ese filtro al bloque `WHERE`, PostgreSQL descartará todas las filas donde no hubo ventas por evaluar `NULL = año`, destruyendo el producto cartesiano y haciendo desaparecer los huecos a cero.
+
+**Comentario:**
+A partir del enunciado identifiqué que para asegurar una rejilla continua sin huecos debía levantar un esqueleto previo mediante un `CROSS JOIN` entre `categories` y los tres años del histórico definidos en una CTE. Con las 24 combinaciones fijadas, enlacé los datos reales usando `LEFT JOIN` hacia `products`, `order_details` y `orders`. Coloqué el filtro del año dentro del `ON` del join para evitar que la ausencia de compras descartara filas enteras en una cláusula `WHERE`. Por último, apliqué la fórmula de facturación con casteo `::numeric`, sustituí los agregados nulos con `COALESCE(..., 0)` y ordené por categoría y año.
+
+![Resultado pregunta 9](images/p09.png)
 
 ---
 
-### Pregunta 10 — Mapa de países: clientes frente a proveedores
-**Enunciado:** Por cada país con presencia: nº clientes, nº proveedores y `tipo_presencia` (`'SOLO CLIENTES'`, `'SOLO PROVEEDORES'` o `'AMBOS'`).
-**Técnicas:** `FULL JOIN` entre dos subconsultas agregadas, `COALESCE()`, `CASE WHEN`
+```python
+# Let's inspect customers and suppliers data in the database / sources
+import re
 
-```sql
+# We have customers and suppliers insert statements in the context
+# Let's verify if there are any nulls or special cases
+print("Python interpreter ready.")
+
 
 ```
 
-![Resultado pregunta 10](img/p10.png)
+### Pregunta 10 — Mapa de países: clientes frente a proveedores
+
+Expansión internacional quiere una única tabla que muestre, para cada país en el que la compañía tiene presencia, cuántos clientes y cuántos proveedores hay. Deben aparecer los países que solo tienen clientes, los que solo tienen proveedores y los que tienen ambos.
+
+**Columnas esperadas:** `pais`, `num_clientes`, `num_proveedores`, `tipo_presencia`
+
+> **Pista:** En un `FULL JOIN` la columna de unión puede venir nula por cualquiera de los dos lados. Si escribes `SELECT a.country`, perderás el nombre de los países que solo existen en la tabla `b`.
+> 
+> 
+
+* **Lo que se pide:** Tabla unificada con todos los mercados donde opera la empresa, indicando el número de clientes, el número de proveedores y una etiqueta ('SOLO CLIENTES', 'SOLO PROVEEDORES' o 'AMBOS') según el tipo de implantación.
+* **Técnicas:** `FULL JOIN` entre dos subconsultas agregadas, `COALESCE()`, `CASE WHEN`
+
+```sql
+-- Mapa de presencia por país cruzando clientes y proveedores con FULL JOIN
+SELECT COALESCE(c.country, s.country) AS pais,
+       COALESCE(c.num_clientes, 0) AS num_clientes,
+       COALESCE(s.num_proveedores, 0) AS num_proveedores,
+       CASE
+           WHEN c.country IS NOT NULL AND s.country IS NOT NULL THEN 'AMBOS'
+           WHEN c.country IS NOT NULL THEN 'SOLO CLIENTES'
+           ELSE 'SOLO PROVEEDORES'
+       END AS tipo_presencia
+FROM (
+    SELECT country, COUNT(customer_id) AS num_clientes
+    FROM customers
+    GROUP BY country
+) c
+FULL JOIN (
+    SELECT country, COUNT(supplier_id) AS num_proveedores
+    FROM suppliers
+    GROUP BY country
+) s ON c.country = s.country
+ORDER BY pais;
+
+```
 
 **Explicación:**
--
--
+* Agrupamos por separado `customers` y `suppliers` por país en sendas subconsultas derivadas para obtener los recuentos aislados antes de combinarlos.
+* Realizamos un `FULL JOIN` para conservar tanto los países exclusivos de clientes como los exclusivos de proveedores y aquellos donde coinciden ambos.
+* **Tip (`COALESCE()` para columnas clave):** Al enlazar con `FULL JOIN`, `c.country` será nulo en países con solo proveedores y `s.country` será nulo en países con solo clientes; `COALESCE(c.country, s.country)` rescata siempre el nombre del país no nulo.
+* **Tip (`COALESCE()` en métricas):** Cuando un país no tiene contraparte en una de las tablas, el join genera un `NULL`; `COALESCE(..., 0)` sustituye ese vacío por un cero numérico para mantener la consistencia del informe.
+* ⚠️ **Trampa técnica:** Unir `customers` y `suppliers` directamente con `FULL JOIN` antes de agrupar genera una multiplicación cartesiana de registros por país, inflando drásticamente los conteos; además, seleccionar únicamente `c.country` como país provocará que mercados como Japón o Países Bajos (que solo tienen proveedores) aparezcan con valor `NULL` en el nombre del país.
+
+**Comentario:**
+A partir del enunciado identifiqué que la coexistencia de países exclusivos de clientes, de proveedores o compartidos requería un `FULL JOIN` entre ambas fuentes. Para evitar distorsiones por productos cartesianos, agregué previamente los clientes y proveedores por país dentro de dos subconsultas independientes en el `FROM`. Utilicé `COALESCE(c.country, s.country)` para garantizar el nombre territorial independientemente del lado en el que existiera el registro, e imputé ceros en los conteos vacíos. Finalmente, clasifiqué la implantación comercial con `CASE WHEN` según la presencia de nulos y ordené alfabéticamente por país.
+
+![Resultado pregunta 10](images/p10.png)
 
 ---
 
