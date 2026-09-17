@@ -514,7 +514,7 @@ Control de gestión quiere una rejilla completa de facturación por categoría y
 > 
 
 * **Lo que se pide:** Generar la matriz completa de 24 filas (8 categorías × 3 años del histórico: 1996, 1997 y 1998) asociando la facturación real acumulada o imputando un 0 si no hubo ventas, ordenado por categoría y año.
-* **Técnicas:** `CROSS JOIN` para generar la rejilla, `LEFT JOIN` contra los datos reales, `COALESCE()`, `EXTRACT()`.
+* **Técnicas:** CTE (`WITH`), `CROSS JOIN` para generar la rejilla, `LEFT JOIN` contra ventas preagregadas, `COALESCE()`, `EXTRACT()`.
 
 ```sql
 -- Rejilla completa categoría × año con facturación acumulada sin huecos
@@ -522,30 +522,37 @@ WITH anios AS (
     SELECT 1996 AS anio 
     UNION ALL SELECT 1997 
     UNION ALL SELECT 1998
+),
+ventas_reales AS (
+    SELECT p.category_id,
+           EXTRACT(YEAR FROM o.order_date)::int AS anio,
+           SUM(ROUND((od.unit_price::numeric) * od.quantity * (1 - od.discount::numeric), 2)) AS facturacion
+    FROM orders o
+    INNER JOIN order_details od USING (order_id)
+    INNER JOIN products p USING (product_id)
+    GROUP BY p.category_id, EXTRACT(YEAR FROM o.order_date)::int
 )
 SELECT c.category_name AS categoria,
        a.anio,
-       COALESCE(SUM(ROUND((od.unit_price::numeric) * od.quantity * (1 - od.discount::numeric), 2)), 0) AS facturacion
+       COALESCE(v.facturacion, 0) AS facturacion
 FROM categories c
 CROSS JOIN anios a
-LEFT JOIN products p ON c.category_id = p.category_id
-LEFT JOIN order_details od ON p.product_id = od.product_id
-LEFT JOIN orders o ON od.order_id = o.order_id 
-                  AND EXTRACT(YEAR FROM o.order_date) = a.anio
-GROUP BY c.category_name, a.anio
+LEFT JOIN ventas_reales v 
+       ON c.category_id = v.category_id 
+      AND a.anio = v.anio
 ORDER BY c.category_name, a.anio;
 
 ```
 
 **Explicación:**
-* Construimos una CTE `anios` con los valores `1996`, `1997` y `1998` y realizamos un `CROSS JOIN` contra `categories` para garantizar las 24 combinaciones teóricas base.
-* Crecemos horizontalmente hacia las ventas reales mediante `LEFT JOIN` sucesivos hacia `products`, `order_details` y `orders` para no perder las combinaciones vacías.
-* **Tip (`EXTRACT()`):** `EXTRACT(YEAR FROM fecha)` permite aislar el año numérico para cruzar directamente contra nuestra dimensión temporal `a.anio`.
-* **Tip (`COALESCE()` sobre agregados):** Cuando un grupo no tiene pedidos coincidentes, `SUM()` devuelve `NULL`; envolver la función con `COALESCE(..., 0)` sustituye la ausencia de transacciones por un valor monetario de cero.
-* ⚠️ **Trampa técnica:** La condición `EXTRACT(YEAR FROM o.order_date) = a.anio` debe colocarse obligatoriamente dentro de la cláusula `ON` del `LEFT JOIN`. Si trasladas ese filtro al bloque `WHERE`, PostgreSQL descartará todas las filas donde no hubo ventas por evaluar `NULL = año`, destruyendo el producto cartesiano y haciendo desaparecer los huecos a cero.
+* Construimos una primera CTE `anios` con los tres periodos históricos y una segunda CTE `ventas_reales` que preagrega con `INNER JOIN` la facturación real exacta por categoría y año.
+* Cruzamos `categories` con `anios` mediante `CROSS JOIN` para erigir la matriz obligatoria de 24 combinaciones (8 categorías × 3 años).
+* Conectamos la rejilla con `ventas_reales` mediante `LEFT JOIN` por categoría y año simultáneamente; si una categoría no tuvo transacciones en ese ejercicio, `v.facturacion` será `NULL`.
+* **Tip (`COALESCE()`):** Transforma los valores ausentes (`NULL`) de las combinaciones sin facturación en un `0` numérico explícito.
+* ⚠️ **Trampa técnica:** Unir `order_details` antes de filtrar el año en `orders` mediante `LEFT JOIN` sucesivos acumula en memoria las líneas de venta de toda la historia; como el `SUM()` toma los importes de `order_details` y no de `orders`, la consulta sumará erróneamente las ventas de los 3 años combinados en cada fila anual.
 
 **Comentario:**
-A partir del enunciado identifiqué que para asegurar una rejilla continua sin huecos debía levantar un esqueleto previo mediante un `CROSS JOIN` entre `categories` y los tres años del histórico definidos en una CTE. Con las 24 combinaciones fijadas, enlacé los datos reales usando `LEFT JOIN` hacia `products`, `order_details` y `orders`. Coloqué el filtro del año dentro del `ON` del join para evitar que la ausencia de compras descartara filas enteras en una cláusula `WHERE`. Por último, apliqué la fórmula de facturación con casteo `::numeric`, sustituí los agregados nulos con `COALESCE(..., 0)` y ordené por categoría y año.
+A partir del enunciado identifiqué que la construcción de una rejilla sin huecos exigía desacoplar la generación de combinaciones del cálculo financiero. Generé el armazón de 24 registros cruzando `categories` con una CTE `anios` vía `CROSS JOIN`. Para evitar arrastrar líneas de detalle ajenas al periodo analizado, preagregué la facturación real por categoría y año en una CTE auxiliar (`ventas_reales`). Finalmente, enlacé ambas estructuras con un `LEFT JOIN` por categoría y año, apliqué `COALESCE(v.facturacion, 0)` para cubrir huecos a cero y ordené por categoría y año.
 
 ![Resultado pregunta 9](images/p09.png)
 
@@ -709,52 +716,143 @@ A partir del enunciado identifiqué la necesidad de resolver dos escenarios geog
 
 ---
 
+## Sección 5. Subconsultas
+
 ### Pregunta 13 — Clientes que nunca han comprado pescado
-**Enunciado:** Clientes que nunca incluyeron un producto `'Seafood'` en ningún pedido. Cliente, país y nº de pedidos que sí ha realizado, de mayor a menor.
-**Técnicas:** anti join con `NOT EXISTS`, subconsulta correlacionada
-*(tienes una solución de referencia en el Apéndice si te atascas)*
+
+El responsable de la categoría Seafood quiere una lista de cuentas sobre las que hacer campaña de captación. Localiza los clientes que **nunca** han incluido un producto de la categoría 'Seafood' en ninguno de sus pedidos. Muestra el nombre del cliente, su país y el número total de pedidos que sí ha realizado, de mayor a menor.
+
+**Columnas esperadas:** `cliente`, `pais`, `pedidos_realizados`
+
+> **Pista:** Hay tres formas de escribir un anti join: `NOT EXISTS`, `NOT IN` y `LEFT JOIN ... WHERE ... IS NULL`. Escribe la versión con `NOT EXISTS` y después prueba con `NOT IN`. Si la subconsulta de `NOT IN` puede devolver algún `NULL`, el resultado será una tabla vacía sin ningún mensaje de error. Es uno de los fallos más difíciles de detectar en SQL.
+> 
+> 
+
+* **Lo que se pide:** Clientes que no han adquirido jamás referencias de 'Seafood', reportando su denominación comercial, país de origen y la cantidad de pedidos totales completados (computando 0 si nunca han comprado), clasificados de mayor a menor actividad.
+* **Técnicas:** Anti join con `NOT EXISTS`, subconsulta correlacionada, `INNER JOIN` múltiple en subconsulta, `LEFT JOIN`, `COUNT()`.
 
 ```sql
+-- Clientes que nunca han comprado productos de la categoría Seafood
+SELECT c.company_name AS cliente,
+       c.country AS pais,
+       COUNT(o.order_id) AS pedidos_realizados
+FROM customers c
+LEFT JOIN orders o ON c.customer_id = o.customer_id
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM orders o2
+    INNER JOIN order_details od ON o2.order_id = od.order_id
+    INNER JOIN products p ON od.product_id = p.product_id
+    INNER JOIN categories cat ON p.category_id = cat.category_id
+    WHERE o2.customer_id = c.customer_id
+      AND cat.category_name = 'Seafood'
+)
+GROUP BY c.company_name, c.country
+ORDER BY pedidos_realizados DESC;
 
 ```
 
-![Resultado pregunta 13](img/p13.png)
-
 **Explicación:**
--
--
+* Implementamos una subconsulta correlacionada con `NOT EXISTS` que rastrea si para el cliente evaluado (`o2.customer_id = c.customer_id`) existe alguna línea con `cat.category_name = 'Seafood'`.
+* La consulta exterior utiliza `LEFT JOIN` contra `orders` para conservar y cuantificar la actividad histórica de los clientes, contemplando incluso a aquellos que nunca han emitido órdenes de compra.
+* **Tip (`NOT EXISTS` y cortocircuito):** `NOT EXISTS` opera bajo evaluación booleana por cortocircuito (*short-circuit evaluation*): en cuanto localiza una coincidencia en la subconsulta descarta la fila externa inmediatamente sin necesidad de recorrer todo el historial del cliente.
+* **Tip (`COUNT(o.order_id)`):** Al evaluar la clave no nula de la tabla derecha tras el `LEFT JOIN`, garantiza que los clientes sin ninguna orden de compra figuren con un cómputo de 0 y no de 1.
+* ⚠️ **Trampa técnica:** Sustituir `NOT EXISTS` por `NOT IN` es uno de los errores silenciosos más peligrosos en SQL: si la columna devuelta por la subconsulta llega a arrojar un solo valor `NULL`, la lógica trivaluada evalúa toda la expresión como `UNKNOWN`, provocando que el `WHERE` descarte todas las filas y entregue un **resultado vacío sin advertencia ni error de sintaxis**; asimismo, olvidar la condición de correlación `o2.customer_id = c.customer_id` comprobará si se vendió pescado en toda la empresa a nivel global, arrojando falsamente cero clientes.
+
+**Comentario:**
+A partir del enunciado identifiqué un patrón clásico de anti join para descartar clientes con transacciones en una familia de productos específica. Opté por `NOT EXISTS` con subconsulta correlacionada en el `WHERE` por ser la alternativa más segura y eficiente frente a `NOT IN`, enlazando internamente `orders`, `order_details`, `products` y `categories` para aislar los consumos de `'Seafood'`. En el bloque externo utilicé un `LEFT JOIN` hacia `orders` con `COUNT(o.order_id)` para reflejar adecuadamente la actividad global del cliente (mostrando 0 si nunca ha comprado). Finalmente, agrupé por empresa y país y ordené descendentemente por el total de pedidos realizados.
+
+![Resultado pregunta 13](images/p13.png)
 
 ---
 
 ### Pregunta 14 — Productos por encima de la media
-**Enunciado:** Productos activos con precio superior a la media de todo el catálogo. Precio, precio medio general y diferencia, redondeados. Ordenado por diferencia descendente.
-**Técnicas:** subconsulta escalar en `WHERE`, subconsulta escalar en `SELECT`, aritmética
+
+El comité de precios quiere identificar el segmento premium del catálogo. Muestra los productos activos cuyo precio unitario supere el precio medio de **todo** el catálogo. Incluye en cada fila el precio del producto, el precio medio general y la diferencia entre ambos, todo redondeado a dos decimales. Ordena por diferencia descendente.
+
+**Columnas esperadas:** `producto`, `precio`, `precio_medio_catalogo`, `diferencia`
+
+> **Pista:** Una subconsulta escalar es aquella que devuelve exactamente una fila y una columna, y por eso se puede usar donde iría un valor. Fíjate en que la misma subconsulta aparece en dos sitios; más adelante verás cómo evitar esa repetición con un CTE.
+> 
+> 
+
+* **Lo que se pide:** Listar los artículos no descatalogados cuyo importe unitario sea superior al promedio aritmético global de todo el catálogo, proyectando precio, promedio general y brecha respecto a la media, redondeados a 2 decimales y ordenados de mayor a menor diferencia.
+* **Técnicas:** Subconsulta escalar en `WHERE`, subconsulta escalar en `SELECT`, aritmética, casteo `::numeric`, `ROUND()`, `ORDER BY`.
 
 ```sql
+-- Productos activos cuyo precio supera la media global del catálogo
+SELECT product_name AS producto,
+       ROUND(unit_price::numeric, 2) AS precio,
+       ROUND((SELECT AVG(unit_price::numeric) FROM products), 2) AS precio_medio_catalogo,
+       ROUND((unit_price::numeric) - (SELECT AVG(unit_price::numeric) FROM products), 2) AS diferencia
+FROM products
+WHERE discontinued = 0
+  AND unit_price > (SELECT AVG(unit_price::numeric) FROM products)
+ORDER BY diferencia DESC;
 
 ```
 
-![Resultado pregunta 14](img/p14.png)
-
 **Explicación:**
--
--
+* La subconsulta escalar `(SELECT AVG(unit_price::numeric) FROM products)` se evalúa para devolver un único registro numérico que representa el precio medio íntegro del catálogo sin restricciones.
+* En el `WHERE`, usamos dicha subconsulta como valor de corte junto a la condición `discontinued = 0` para filtrar únicamente los productos activos premium.
+* En el `SELECT`, reutilizamos la subconsulta para exponer la columna de referencia (`precio_medio_catalogo`) y para ejecutar la resta aritmética directa con `unit_price` (`diferencia`).
+* **Tip (Subconsultas escalares):** Al producir estrictamente una fila y una columna, el motor SQL permite incrustarlas directamente en proyecciones del `SELECT`, cláusulas `WHERE` u operaciones aritméticas como si fuesen constantes numéricas fijas.
+* **Tip (Casteo y precisión):** Castear `unit_price::numeric` dentro de `AVG()` evita errores al invocar `ROUND(..., 2)`, ya que `AVG` sobre tipos `real` genera `double precision`, tipo incompatible con la signatura de redondeo de dos parámetros.
+* ⚠️ **Trampa técnica:** Intentar calcular la diferencia reutilizando los alias definidos en la misma cláusula `SELECT` (`ROUND(precio - precio_medio_catalogo, 2)`) provocará un error de columna inexistente (`column "precio" does not exist`), ya que las expresiones del `SELECT` se procesan en paralelo y no pueden llamarse entre sí; asimismo, añadir `WHERE discontinued = 0` dentro de la subconsulta distorsionará el promedio global, ya que el enunciado exige la media de **todo el catálogo** y no solo la de las referencias vigentes.
+
+**Comentario:**
+A partir del enunciado identifiqué la necesidad de aplicar una subconsulta escalar en dos ámbitos independientes de la consulta. Por un lado, la utilicé en el `WHERE` como valor umbral para conservar únicamente los productos activos cuyo precio estuviese por encima del promedio del inventario completo. Por otro lado, la proyecté dos veces en el `SELECT`: primero para mostrar el valor del precio medio general y segundo para computar la resta aritmética con el precio del artículo. Apliqué el casteo preventivo `::numeric` y `ROUND(..., 2)` en todas las métricas monetarias para evitar inconsistencias de coma flotante y ordené de forma descendente por el alias `diferencia`.
+
+![Resultado pregunta 14](img/p14.png)
 
 ---
 
 ### Pregunta 15 — Ticket medio por cliente
-**Enunciado:** Para cada cliente: nº pedidos, importe total y ticket medio (calculado en dos niveles: importe por pedido, luego media por cliente). Los 15 con mayor ticket medio.
-**Técnicas:** subconsulta en `FROM` (con alias obligatorio), agregación en dos niveles, `LIMIT`
+
+Dirección comercial quiere segmentar la cartera por valor medio de pedido, no por volumen total. Calcula, para cada cliente que haya comprado alguna vez, el número de pedidos, el importe total acumulado y el importe medio por pedido. Muestra los 15 clientes con mayor ticket medio. El cálculo tiene dos niveles: primero hay que obtener el importe de cada pedido sumando sus líneas, y solo después promediar esos importes por cliente. Promediar directamente las líneas daría un resultado distinto y equivocado.
+
+**Columnas esperadas:** `cliente`, `pais`, `num_pedidos`, `importe_total`, `ticket_medio`
+
+> **Pista:** Toda subconsulta en `FROM` necesita un alias en PostgreSQL, aunque no lo uses. Si lo olvidas, el error que verás es `subquery in FROM must have an alias`.
+> 
+> 
+
+* **Lo que se pide:** Arquitectura de agregación en dos niveles para calcular el valor monetario consolidado por orden de compra y posteriormente promediar el gasto por cliente, aislando las 15 cuentas con mayor ticket medio.
+* **Técnicas:** Subconsulta en `FROM` (tabla derivada con alias obligatorio), agregación multinivel, `ROUND()`, `LIMIT`.
 
 ```sql
+-- Top 15 clientes por importe medio de pedido agregando en dos niveles
+SELECT c.company_name AS cliente,
+       c.country AS pais,
+       COUNT(op.order_id) AS num_pedidos,
+       ROUND(SUM(op.importe_pedido), 2) AS importe_total,
+       ROUND(AVG(op.importe_pedido), 2) AS ticket_medio
+FROM customers c
+INNER JOIN (
+    SELECT o.order_id,
+           o.customer_id,
+           SUM(ROUND((od.unit_price::numeric) * od.quantity * (1 - od.discount::numeric), 2)) AS importe_pedido
+    FROM orders o
+    INNER JOIN order_details od USING (order_id)
+    GROUP BY o.order_id, o.customer_id
+) op ON c.customer_id = op.customer_id
+GROUP BY c.customer_id, c.company_name, c.country
+ORDER BY ticket_medio DESC
+LIMIT 15;
 
 ```
 
-![Resultado pregunta 15](img/p15.png)
-
 **Explicación:**
--
--
+* La subconsulta derivada interna (`op`) consolida en primer nivel el importe monetario neto de cada compra individual agrupando por `order_id`.
+* La consulta exterior ejecuta el segundo nivel de agregación sobre los pedidos ya totalizados, calculando el recuento de órdenes con `COUNT()`, el acumulado con `SUM()` y la media de compra con `AVG()` por cliente.
+* **Tip (Agregación multinivel vs promedio de líneas):** Calcular directamente `AVG()` sobre `order_details` representaría el importe medio por artículo individual facturado, falseando el valor global de la cesta de la compra requerida por Dirección.
+* **Tip (Alias en tablas derivadas):** Toda subconsulta ubicada en la cláusula `FROM` actúa como una tabla virtual temporal y requiere un identificador explícito (`op`) para que el planificador de PostgreSQL pueda referenciarla.
+* ⚠️ **Trampa técnica:** Omitir el alias al cerrar el paréntesis de la subconsulta en el `FROM` (`) op ON ...`) provocará un error de sintaxis bloqueante (`subquery in FROM must have an alias`); además, intentar calcular la media sin preagregar a nivel de `order_id` producirá un desvío analítico silencioso en el `ticket_medio` al ponderar cada producto como si fuese una compra independiente.
+
+**Comentario:**
+A partir del enunciado identifiqué que el ticket medio exigía evaluar carritos completos y no transacciones de línea sueltas, lo que me obligó a plantear una agregación en dos fases. Diseñé una tabla derivada en el `FROM` que calcula el importe total de cada orden individual aplicando la fórmula monetaria estandarizada con casteo a `::numeric`. Posteriormente, vinculé esa tabla con `customers`, computé el volumen total de pedidos, la facturación acumulada y el promedio por orden mediante `AVG(op.importe_pedido)`. Finalmente, agrupé asegurando la clave primaria `c.customer_id`, ordené descendentemente por el valor medio y restringí el reporte con `LIMIT 15`.
+
+![Resultado pregunta 15](img/p15.png)
 
 ---
 
