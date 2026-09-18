@@ -803,7 +803,7 @@ ORDER BY diferencia DESC;
 **Comentario:**
 A partir del enunciado identifiqué la necesidad de aplicar una subconsulta escalar en dos ámbitos independientes de la consulta. Por un lado, la utilicé en el `WHERE` como valor umbral para conservar únicamente los productos activos cuyo precio estuviese por encima del promedio del inventario completo. Por otro lado, la proyecté dos veces en el `SELECT`: primero para mostrar el valor del precio medio general y segundo para computar la resta aritmética con el precio del artículo. Apliqué el casteo preventivo `::numeric` y `ROUND(..., 2)` en todas las métricas monetarias para evitar inconsistencias de coma flotante y ordené de forma descendente por el alias `diferencia`.
 
-![Resultado pregunta 14](img/p14.png)
+![Resultado pregunta 14](images/p14.png)
 
 ---
 
@@ -852,91 +852,297 @@ LIMIT 15;
 **Comentario:**
 A partir del enunciado identifiqué que el ticket medio exigía evaluar carritos completos y no transacciones de línea sueltas, lo que me obligó a plantear una agregación en dos fases. Diseñé una tabla derivada en el `FROM` que calcula el importe total de cada orden individual aplicando la fórmula monetaria estandarizada con casteo a `::numeric`. Posteriormente, vinculé esa tabla con `customers`, computé el volumen total de pedidos, la facturación acumulada y el promedio por orden mediante `AVG(op.importe_pedido)`. Finalmente, agrupé asegurando la clave primaria `c.customer_id`, ordené descendentemente por el valor medio y restringí el reporte con `LIMIT 15`.
 
-![Resultado pregunta 15](img/p15.png)
+![Resultado pregunta 15](images/p15.png)
 
 ---
 
+## Sección 6. Subconsultas correlacionadas y CTE
+
 ### Pregunta 16 — El producto más caro de cada categoría
-**Enunciado:** Para cada categoría, el producto con el precio más alto: categoría, producto, precio y precio medio de su categoría. Resuelto con subconsulta correlacionada.
-**Técnicas:** subconsulta correlacionada en `WHERE`, subconsulta correlacionada en `SELECT`, `INNER JOIN`
+
+El equipo de compras quiere revisar el posicionamiento de precio en cada familia. Para cada categoría, muestra el producto con el precio unitario más alto. Incluye el nombre de la categoría, el nombre del producto, su precio y el precio medio de su categoría. Resuélvelo con una subconsulta correlacionada: para cada producto, comprueba si su precio coincide con el máximo de su propia categoría.
+
+**Columnas esperadas:** `categoria`, `producto`, `precio`, `precio_medio_categoria`
+
+> **Pista:** Una subconsulta correlacionada se ejecuta conceptualmente una vez por cada fila de la consulta externa, porque hace referencia a una columna de esa fila. Eso la hace potente pero costosa. Cuando termines, plantéate cuál sería el coste sobre una tabla de diez millones de filas.
+
+* **Lo que se pide:** Identificar el artículo de mayor precio unitario dentro de cada una de las 8 categorías comerciales, proyectando categoría, producto, precio y el precio medio específico de su familia, resuelto mediante subconsultas correlacionadas en `WHERE` y `SELECT`.
+* **Técnicas:** Subconsulta correlacionada en `WHERE`, subconsulta correlacionada en `SELECT`, `INNER JOIN`, casteo `::numeric`, `ROUND()`.
 
 ```sql
+-- Producto con el precio más alto por categoría y precio medio de su familia
+SELECT c.category_name AS categoria,
+       p.product_name AS producto,
+       ROUND(p.unit_price::numeric, 2) AS precio,
+       ROUND((
+           SELECT AVG(p2.unit_price::numeric)
+           FROM products p2
+           WHERE p2.category_id = p.category_id
+       ), 2) AS precio_medio_categoria
+FROM products p
+INNER JOIN categories c ON p.category_id = c.category_id
+WHERE p.unit_price = (
+    SELECT MAX(p3.unit_price)
+    FROM products p3
+    WHERE p3.category_id = p.category_id
+)
+ORDER BY categoria;
 
 ```
 
-![Resultado pregunta 16](img/p16.png)
-
 **Explicación:**
--
--
+* Enlazamos `products` con `categories` mediante `INNER JOIN` para disponer de la denominación oficial de cada familia (`c.category_name`).
+* En el `WHERE`, la subconsulta correlacionada `(SELECT MAX(p3.unit_price) ... WHERE p3.category_id = p.category_id)` evalúa para cada fila exterior si el precio del artículo actual iguala al máximo histórico registrado en su misma categoría.
+* En el `SELECT`, una segunda subconsulta correlacionada calcula el precio promedio (`AVG`) restringido exclusivamente a los artículos que comparten el mismo `p.category_id`.
+* **Tip (Subconsulta correlacionada vs escalar global):** A diferencia de una subconsulta fija que se ejecuta una sola vez, la correlacionada depende dinámicamente del valor exterior (`p.category_id`) en cada iteración del escaneo de filas.
+* **Tip (Casteo monetario con agregaciones):** Aplicar `p2.unit_price::numeric` dentro de `AVG()` garantiza compatibilidad directa con `ROUND(..., 2)` evitando imprecisiones de coma flotante de tipo `real`.
+* ⚠️ **Trampa técnica:** Olvidar la condición de correlación dentro del `WHERE` (`WHERE p3.category_id = p.category_id`) transformará la subconsulta en un agregado global, devolviendo únicamente el producto más caro de toda la compañía (*Côte de Blaye*) y arrojando una sola fila en vez de las 8 categorías comerciales requeridas; de igual forma, omitir la correlación en la subconsulta del `SELECT` calcularía la media de todo el catálogo en vez de la media segmentada por familia.
+
+**Comentario:**
+A partir del enunciado identifiqué la necesidad de aplicar una subconsulta correlacionada en dos cláusulas clave. En el `WHERE`, vinculé la subconsulta con la fila externa mediante `p3.category_id = p.category_id` comparando con `MAX(unit_price)` para aislar el techo de precio de cada familia. En el `SELECT`, repliqué el enlace correlacionado para calcular dinámicamente `AVG(p2.unit_price::numeric)` de esa misma categoría comercial. Relacioné `products` con `categories` mediante `INNER JOIN` para extraer el nombre descriptivo y aseguré el casteo a `::numeric` con `ROUND(..., 2)` en los importes monetarios antes de ordenar alfabéticamente por categoría.
+
+![Resultado pregunta 16](images/p16.png)
 
 ---
 
 ### Pregunta 17 — Segmentación ABC de la cartera de clientes
-**Enunciado:** Con CTEs: facturación total por cliente, repartida en cuartiles, etiquetada (`A - Estratégico`...`D - Marginal`). Por segmento: nº clientes, facturación total y % sobre el total.
-**Técnicas:** CTEs encadenadas, `NTILE()`, `CASE WHEN`, agregación sobre CTE
-*(tienes una solución de referencia en el Apéndice si te atascas)*
+
+Dirección quiere clasificar a los clientes en tramos de valor para asignar recursos comerciales. Usando expresiones de tabla común (CTE), construye una consulta que calcule la facturación total de cada cliente, divida los clientes en cuartiles según esa facturación y asigne una etiqueta de segmento: `'A - Estratégico'` al cuartil superior, `'B - Consolidado'` al segundo, `'C - Ocasional'` al tercero y `'D - Marginal'` al cuarto. Devuelve, por segmento, el número de clientes, la facturación total del segmento y el porcentaje que representa sobre el total de la compañía.
+
+**Columnas esperadas:** `segmento`, `num_clientes`, `facturacion_segmento`, `porcentaje_sobre_total`
+
+> **Pista:** Encadenar CTE permite leer la consulta de arriba abajo como una receta, en lugar de descifrarla de dentro hacia fuera como ocurre con las subconsultas anidadas. Una CTE puede referirse a las declaradas antes que ella.
+> 
+> 
+
+* **Lo que se pide:** Clasificar a la cartera de clientes en 4 cuartiles equilibrados mediante CTEs encadenadas y calcular por cada tramo el recuento de cuentas, facturación neta agregada y peso porcentual respecto a la facturación global de la compañía.
+* **Técnicas:** `WITH` con CTEs encadenadas, `NTILE()`, `CASE WHEN`, agregación sobre CTE, función de ventana totalizadora `SUM() OVER ()`, cálculo de porcentaje con `ROUND()`.
 
 ```sql
+-- Segmentación ABC de clientes por cuartiles de facturación y cuota sobre el total
+WITH facturacion_cliente AS (
+    SELECT c.customer_id,
+           c.company_name,
+           SUM(ROUND((od.unit_price::numeric) * od.quantity * (1 - od.discount::numeric), 2)) AS facturacion
+    FROM customers c
+    INNER JOIN orders o ON o.customer_id = c.customer_id
+    INNER JOIN order_details od ON od.order_id = o.order_id
+    GROUP BY c.customer_id, c.company_name
+),
+clientes_segmentados AS (
+    SELECT customer_id,
+           company_name,
+           facturacion,
+           NTILE(4) OVER (ORDER BY facturacion DESC) AS cuartil
+    FROM facturacion_cliente
+),
+clientes_etiquetados AS (
+    SELECT customer_id,
+           company_name,
+           facturacion,
+           CASE cuartil
+               WHEN 1 THEN 'A - Estratégico'
+               WHEN 2 THEN 'B - Consolidado'
+               WHEN 3 THEN 'C - Ocasional'
+               WHEN 4 THEN 'D - Marginal'
+           END AS segmento
+    FROM clientes_segmentados
+)
+SELECT segmento,
+       COUNT(*) AS num_clientes,
+       ROUND(SUM(facturacion), 2) AS facturacion_segmento,
+       ROUND(100.0 * SUM(facturacion) / SUM(SUM(facturacion)) OVER (), 2) AS porcentaje_sobre_total
+FROM clientes_etiquetados
+GROUP BY segmento
+ORDER BY segmento;
 
 ```
 
-![Resultado pregunta 17](img/p17.png)
-
 **Explicación:**
--
--
+* La primera CTE (`facturacion_cliente`) consolida las compras netas de cada cliente aplicando la fórmula estándar con casteo monetario `::numeric`.
+* La segunda CTE (`clientes_segmentados`) utiliza la función analítica `NTILE(4) OVER (ORDER BY facturacion DESC)` para dividir a los clientes en cuatro cubos homogéneos de igual tamaño según su volumen de compra.
+* La tercera CTE (`clientes_etiquetados`) proyecta la etiqueta comercial correspondiente a cada nivel mediante una bifurcación `CASE`.
+* La consulta exterior agrupa por `segmento` y calcula el peso porcentual mediante `SUM(SUM(facturacion)) OVER ()`.
+* **Tip (Doble agregación con ventana):** En la expresión del porcentaje, el `SUM(facturacion)` interior calcula la suma de cada segmento conformada por el `GROUP BY`, mientras que el `SUM(...) OVER ()` exterior opera como función de ventana sin partición, obteniendo el gran total de toda la compañía sin requerir subconsultas adicionales.
+* **Tip (División de punto flotante):** Multiplicar por `100.0` fuerza la conversión implícita a numérico de precisión decimal antes de dividir, evitando truncamientos indeseados.
+* ⚠️ **Trampa técnica:** Si multiplicas por el entero `100` en lugar de `100.0` o no casteas a `::numeric`, PostgreSQL puede resolver la operación mediante división entera, truncando los decimales a cero; además, intentar calcular `NTILE(4)` y agrupar por su resultado en una misma consulta sin usar CTEs provocará un error de sintaxis, ya que las funciones de ventana se computan después del `GROUP BY` y no pueden anidarse directamente en él.
+
+**Comentario:**
+A partir del enunciado identifiqué la conveniencia de modular el problema en un pipeline de tres CTEs consecutivas para mantener la legibilidad analítica. En la primera fase acumulé la facturación neta por cliente asegurando la fórmula de cálculo oficial. En la segunda apliqué `NTILE(4)` para que la distribución de cuentas fuera matemáticamente equitativa entre los cuatro segmentos. Asigné la nomenclatura corporativa requerida a cada cuartil y, en el bloque final, agrupé por segmento combinando recuentos, facturación acumulada y el cálculo de la cuota porcentual sobre el total general mediante `SUM(SUM(...)) OVER ()`.
+
+![Resultado pregunta 17](images/p17.png)
 
 ---
 
+## Sección 7. Funciones de ventana
+
 ### Pregunta 18 — Los tres productos más vendidos de cada categoría
-**Enunciado:** Los 3 productos con mayor facturación de cada categoría: categoría, posición en categoría, producto, unidades, facturación y posición global en la empresa.
-**Técnicas:** `RANK()` con `PARTITION BY`, `RANK()` sin `PARTITION BY`, CTE para poder filtrar
-*(tienes una solución de referencia en el Apéndice si te atascas)*
+
+**Enunciado:** El equipo de categoría necesita el podio de cada familia para negociar con proveedores. Para cada categoría, obtén los tres productos con mayor facturación. Muestra la categoría, la posición dentro de la categoría, el nombre del producto, las unidades vendidas y la facturación. Incluye además una columna con la posición global del producto en el conjunto de la compañía, para que se vea qué productos son líderes de su nicho pero irrelevantes en el total.
+
+**Columnas esperadas:** `categoria`, `posicion_en_categoria`, `producto`, `unidades`, `facturacion`, `posicion_global`
+
+> **Pista:** No se puede filtrar por una función de ventana en el `WHERE`, porque las funciones de ventana se evalúan después del filtrado. Necesitas calcularla en una CTE o subconsulta y filtrar fuera. Piensa también qué ocurriría con `RANK()` frente a `DENSE_RANK()` frente a `ROW_NUMBER()` si dos productos empatasen exactamente en facturación.
+> 
+> 
+
+* **Lo que se pide:** Podio de los 3 productos líderes en facturación por familia junto con su posicionamiento de facturación absoluto en toda la compañía, unidades vendidas y volumen facturado redondeado por línea a dos decimales.
+* **Técnicas:** `RANK()` con `PARTITION BY`, `RANK()` sin `PARTITION BY`, CTE encadenada para filtrado analítico, `ROUND()`.
 
 ```sql
+-- Podio de productos por categoría y comparativa contra ranking global
+WITH ventas_producto AS (
+    SELECT p.product_id,
+           p.product_name,
+           c.category_name,
+           SUM(od.quantity) AS unidades,
+           SUM(ROUND((od.unit_price::numeric) * od.quantity * (1 - od.discount::numeric), 2)) AS facturacion
+    FROM products p
+    INNER JOIN categories c ON c.category_id = p.category_id
+    INNER JOIN order_details od ON od.product_id = p.product_id
+    GROUP BY p.product_id, p.product_name, c.category_name
+),
+ranking AS (
+    SELECT category_name,
+           product_name,
+           unidades,
+           facturacion,
+           RANK() OVER (PARTITION BY category_name ORDER BY facturacion DESC) AS posicion_en_categoria,
+           RANK() OVER (ORDER BY facturacion DESC) AS posicion_global
+    FROM ventas_producto
+)
+SELECT category_name AS categoria,
+       posicion_en_categoria,
+       product_name AS producto,
+       unidades,
+       facturacion,
+       posicion_global
+FROM ranking
+WHERE posicion_en_categoria <= 3
+ORDER BY category_name, posicion_en_categoria;
 
 ```
 
-![Resultado pregunta 18](img/p18.png)
-
 **Explicación:**
--
--
+* La CTE `ventas_producto` computa las unidades y la facturación histórica acumulada aplicando la fórmula obligatoria por línea de pedido: `SUM(ROUND(..., 2))` con casteo preventivo a `::numeric`.
+* La CTE `ranking` evalúa dos funciones analíticas simultáneas: `RANK() OVER (PARTITION BY category_name ORDER BY facturacion DESC)` para generar el podio independiente de cada categoría, y `RANK() OVER (ORDER BY facturacion DESC)` sin partición para asignar la posición jerárquica global en toda la empresa.
+* **Tip (`RANK()` vs `ROW_NUMBER()`):** `RANK()` asigna la misma posición ante empates monetarios dejando huecos posteriores (ej. 1, 2, 2, 4), lo cual es el estándar formal de reporting comercial; `ROW_NUMBER()` rompería el empate asignando puestos arbitrarios.
+* **Tip (Orden de evaluación de ventanas):** Las funciones de ventana se ejecutan en una fase posterior al `WHERE` y al `HAVING`, por lo que es mandatorio aislar su cálculo en una CTE previa antes de intentar filtrar sus posiciones.
+* ⚠️ **Trampa técnica:** Intentar escribir `WHERE RANK() OVER (...) <= 3` directamente provocará un error de sintaxis inmediato (`window functions are not allowed in WHERE`), requiriendo obligatoriamente la CTE intermedia; asimismo, calcular `ROUND(SUM(...), 2)` en vez de `SUM(ROUND(..., 2))` arrastrará discrepancias de céntimos respecto a las cifras oficiales de la corrección automática.
+
+**Comentario:**
+Resolví la doble jerarquía combinando dos cláusulas de ventana sobre una CTE agregada previa. La partición por `category_name` garantiza que el contador se restablezca a 1 en cada familia de producto, mientras que la segunda ventana sin particionar clasifica los artículos en el plano global de la compañía. Unifiqué la fórmula monetaria agregando el redondeo por línea con `SUM(ROUND(..., 2))` y finalmente filtré las primeras tres posiciones en la consulta exterior ordenando por familia y podio.
+
+![Resultado pregunta 18](images/p18.png)
 
 ---
 
 ### Pregunta 19 — Evolución mensual con acumulado y media móvil
-**Enunciado:** Para cada mes de 1997: facturación, acumulado desde enero, media móvil de 3 meses, facturación del mes anterior y variación % respecto al anterior.
-**Técnicas:** `DATE_TRUNC()`, `SUM() OVER` acumulado, marco explícito `ROWS BETWEEN`, `LAG()`
-*(tienes una solución de referencia en el Apéndice si te atascas)*
+
+Control de gestión prepara el cuadro de mando de la evolución del negocio durante 1997[cite: 1, 4]. Para cada mes de 1997, calcula la facturación del mes, el total acumulado desde enero, la media móvil de los tres últimos meses (el mes actual y los dos anteriores), la facturación del mes anterior y la variación porcentual respecto al mes anterior[cite: 1, 4].
+
+**Columnas esperadas:** `mes`, `facturacion`, `acumulado`, `media_movil_3m`, `mes_anterior`, `variacion_pct`[cite: 1, 4]
+
+> **Pista:** Cuando una función de ventana agregada lleva `ORDER BY` pero no especificas marco, PostgreSQL aplica por defecto `RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`, que es justo lo que quieres para el acumulado. Para la media móvil ese comportamiento por defecto no sirve: ahí tienes que declarar el marco tú. La primera fila no tiene mes anterior: decide qué mostrar en ese caso.
+> 
+> 
+
+* **Lo que se pide:** Cuadro de mando mensual para el ejercicio 1997 calculando facturación mensual, acumulado progresivo anual, media móvil trimestral (3 periodos), comparativa respecto al mes precedente y variación porcentual relativa[cite: 1, 4].
+* **Técnicas:** CTE (`WITH`), `DATE_TRUNC()`, `SUM() OVER (ORDER BY ...)`, marco explícito `ROWS BETWEEN 2 PRECEDING AND CURRENT ROW`, `LAG()`, casteo `::numeric`, `ROUND()`.
 
 ```sql
+-- Evolución mensual de 1997 con acumulado, media móvil de 3 meses y variación intermensual
+WITH facturacion_mensual AS (
+    SELECT DATE_TRUNC('month', o.order_date) AS mes,
+           SUM(ROUND((od.unit_price::numeric) * od.quantity * (1 - od.discount::numeric), 2)) AS facturacion
+    FROM orders o
+    INNER JOIN order_details od ON od.order_id = o.order_id
+    WHERE o.order_date >= '1997-01-01' AND o.order_date < '1998-01-01'
+    GROUP BY DATE_TRUNC('month', o.order_date)
+)
+SELECT mes,
+       facturacion,
+       SUM(facturacion) OVER (ORDER BY mes) AS acumulado,
+       ROUND(AVG(facturacion) OVER (ORDER BY mes ROWS BETWEEN 2 PRECEDING AND CURRENT ROW), 2) AS media_movil_3m,
+       LAG(facturacion) OVER (ORDER BY mes) AS mes_anterior,
+       ROUND(100.0 * (facturacion - LAG(facturacion) OVER (ORDER BY mes))
+             / LAG(facturacion) OVER (ORDER BY mes), 2) AS variacion_pct
+FROM facturacion_mensual
+ORDER BY mes;
 
 ```
 
-![Resultado pregunta 19](img/p19.png)
-
 **Explicación:**
--
--
+* La CTE `facturacion_mensual` normaliza las fechas al primer día de cada mes con `DATE_TRUNC('month', o.order_date)` y calcula la facturación mensual sumando líneas redondeadas a dos decimales con `SUM(ROUND(..., 2))`.
+* En la consulta externa proyectamos las métricas analíticas sobre la serie temporal ordenada cronológicamente.
+* **Tip (Marco por defecto vs marco explícito):** `SUM(facturacion) OVER (ORDER BY mes)` aplica por defecto el marco `RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`, acumulando el total desde enero sin necesidad de sintaxis adicional. Para la media móvil, es obligatorio definir `ROWS BETWEEN 2 PRECEDING AND CURRENT ROW` para restringir el cálculo estrictamente al mes actual y los 2 anteriores.
+* **Tip (`LAG()` y valor ausente en el origen):** La función analítica `LAG(facturacion) OVER (ORDER BY mes)` recupera el importe del mes previo. En enero de 1997 (primer registro), `LAG` devuelve `NULL` de manera natural, propagando ese valor nulo a `variacion_pct` para reflejar analíticamente la inexistencia de periodo anterior comparable en la serie.
+* ⚠️ **Trampa técnica:** Omitir la definición explícita del marco `ROWS BETWEEN 2 PRECEDING AND CURRENT ROW` en la función `AVG()` hará que PostgreSQL adopte el marco acumulativo por defecto, calculando la media acumulada de todo el año en lugar de la media móvil trimestral; asimismo, no multiplicar por `100.0` provocará una división entera que truncará a cero las variaciones porcentuales decimales.
+
+**Comentario:**
+Aislé los 12 meses de 1997 en una CTE previa agrupando por mes mediante `DATE_TRUNC()` y calculando la facturación real con la fórmula unificada `SUM(ROUND(..., 2))`. En la consulta principal utilicé tres funciones de ventana simultáneas: una suma acumulada progresiva, una media móvil delimitada a 3 filas físicas con `ROWS BETWEEN 2 PRECEDING AND CURRENT ROW` y la función `LAG()` para contrastar cada mes contra su predecesor. Por último, ordené cronológicamente por `mes` para estructurar la serie temporal.
+
+![Resultado pregunta 19](images/p19.png)
 
 ---
 
 ### Pregunta 20 — Cuadro de mando anual por categoría
-**Enunciado:** Una fila por categoría con facturación de 1996/1997/1998 en columnas, más total, fila de totales generales, peso % sobre el total y tendencia 1997→1998.
-**Técnicas:** pivotado con `FILTER`, `ROLLUP`, `COALESCE()`, `CASE WHEN`, funciones de ventana para el peso
-*(tienes una solución de referencia en el Apéndice si te atascas)*
+
+Construye una tabla donde cada fila sea una categoría y las columnas muestren la facturación de 1996, 1997 y 1998 en columnas separadas, más el total de los tres años. Añade al final una fila de totales generales. Incluye además una columna que indique el peso de cada categoría sobre la facturación total de la compañía, y otra que muestre si la categoría creció o decreció entre 1997 y 1998.
+
+**Columnas esperadas:** `categoria`, `f_1996`, `f_1997`, `f_1998`, `total`, `peso_pct`, `tendencia`
+
+> **Pista:** El pivotado en SQL estándar consiste en convertir filas en columnas mediante una función de agregación que solo suma cuando se cumple una condición. PostgreSQL ofrece dos sintaxis equivalentes: `SUM(CASE WHEN anio = 1997 THEN importe ELSE 0 END)` y la más moderna `SUM(importe) FILTER (WHERE anio = 1997)`. Escribe la versión con `FILTER`, que es específica de PostgreSQL y mucho más legible. Ten en cuenta que 1996 solo tiene medio año de datos (desde julio) y 1998 llega solo hasta mayo. La tendencia entre 1997 y 1998 no es comparable sin normalizar. Menciónalo en un comentario dentro de tu consulta: detectar que una comparación no es válida vale más que calcularla bien.
+> 
+> 
+
+* **Lo que se pide:** Cuadro de mando financiero matricial pivotando el histórico por ejercicio con `FILTER`, incorporando fila de consolidación global con `ROLLUP`, calculando la cuota sobre ventas de cada familia y evaluando la tendencia interanual documentando el sesgo temporal del dataset.
+* **Técnicas:** Pivotado con `FILTER`, `ROLLUP`, `COALESCE()`, `CASE WHEN`, funciones de ventana (`OVER ()`), `EXTRACT()`.
 
 ```sql
+-- Cuadro de mando trianual pivotado por categoría con totales ROLLUP y tendencia
+WITH facturacion_categoria_anio AS (
+    SELECT c.category_name,
+           EXTRACT(YEAR FROM o.order_date)::int AS anio,
+           (od.unit_price::numeric) * od.quantity * (1 - od.discount::numeric) AS importe
+    FROM categories c
+    INNER JOIN products p ON p.category_id = c.category_id
+    INNER JOIN order_details od ON od.product_id = p.product_id
+    INNER JOIN orders o ON o.order_id = od.order_id
+)
+SELECT COALESCE(category_name, 'TOTAL GENERAL') AS categoria,
+       ROUND(SUM(importe) FILTER (WHERE anio = 1996), 2) AS f_1996,
+       ROUND(SUM(importe) FILTER (WHERE anio = 1997), 2) AS f_1997,
+       ROUND(SUM(importe) FILTER (WHERE anio = 1998), 2) AS f_1998,
+       ROUND(SUM(importe), 2) AS total,
+       ROUND(100.0 * SUM(importe) / (SUM(SUM(importe)) OVER () / 2.0), 2) AS peso_pct,
+       CASE
+           WHEN category_name IS NULL THEN '-'
+           WHEN SUM(importe) FILTER (WHERE anio = 1998) > SUM(importe) FILTER (WHERE anio = 1997) THEN 'CRECIÓ'
+           WHEN SUM(importe) FILTER (WHERE anio = 1998) < SUM(importe) FILTER (WHERE anio = 1997) THEN 'DECRECIÓ'
+           ELSE 'IGUAL'
+       END AS tendencia
+       -- NOTA DE NEGOCIO: 1996 solo abarca operaciones desde julio y 1998 concluye en mayo;
+       -- contrastar 12 meses de 1997 contra 5 meses de 1998 sesga la comparativa hacia 'DECRECIÓ' sin previa anualización.
+FROM facturacion_categoria_anio
+GROUP BY ROLLUP(category_name)
+ORDER BY category_name NULLS LAST;
 
 ```
 
-![Resultado pregunta 20](img/p20.png)
-
 **Explicación:**
--
--
+* En la CTE `facturacion_categoria_anio` cruzamos las cuatro tablas clave calculando el importe monetario neto de cada línea y aislando el año con `EXTRACT(YEAR FROM o.order_date)::int`.
+* El pivotado por columnas anuales se construye mediante la cláusula nativa `SUM(importe) FILTER (WHERE anio = YYYY)`, acumulando selectivamente los importes de cada ejercicio de forma limpia.
+* `GROUP BY ROLLUP(category_name)` añade automáticamente la fila de super-agregación global al pie del reporte, generando un valor `NULL` en `category_name` que `COALESCE` etiqueta como `'TOTAL GENERAL'`.
+* **Tip (`FILTER` vs `CASE WHEN`):** `SUM(...) FILTER (WHERE ...)` es el estándar moderno en PostgreSQL; descarta las filas no coincidentes del agregado sin necesidad de evaluar ramas `ELSE 0`, mejorando la legibilidad y el rendimiento frente al pivotado tradicional.
+* **Tip (`ORDER BY ... NULLS LAST`):** En PostgreSQL las ordenaciones ascendentes sitúan los valores `NULL` al principio; añadir `NULLS LAST` fuerza a que la fila de totales generales quede anclada al final de la tabla.
+* ⚠️ **Trampa técnica:** Cuando se combina `ROLLUP` con una función de ventana totalizadora (`SUM(SUM(importe)) OVER ()`), PostgreSQL evalúa la ventana sobre el conjunto ya agrupado que incluye la fila de total general; dado que la suma de las 8 categorías ($T$) más la fila de rollup ($T$) da $2T$, omitir la división entre 2 (`/ 2.0`) provocará que la fila de `'TOTAL GENERAL'` muestre un peso de `50.00%` en lugar de `100.00%` y que cada categoría refleje la mitad de su cuota real de mercado.
+
+**Comentario:**
+A partir del enunciado identifiqué la necesidad de componer un cuadro de mando financiero integral combinando pivotado analítico, agregación multidimensional y funciones de ventana. Diseñé una CTE base para consolidar las líneas con sus años respectivos y apliqué `SUM(importe) FILTER (WHERE anio = ...)` para distribuir los importes en columnas temporales independientes sin extensiones adicionales. Empleé `ROLLUP` para inyectar la fila de consolidación corporativa, rotulada mediante `COALESCE`, y calculé el peso porcentual neutralizando la duplicidad del denominador inherente al rollup mediante `/ 2.0`. Finalmente, evalué la tendencia mediante `CASE WHEN` y documenté en el código el sesgo temporal del dataset, dado que 1998 solo abarca hasta mayo frente a los doce meses completos de 1997.
+
+![Resultado pregunta 20](images/p20.png)
+
 
 ---
 
@@ -953,166 +1159,3 @@ A partir del enunciado identifiqué que el ticket medio exigía evaluar carritos
 
 ---
 
-## 5. Apéndice — soluciones de referencia (7, 13, 17, 18, 19, 20)
-
-Estas seis ya están resueltas y explicadas en detalle, por si te atascas con las técnicas más nuevas (anti join, CTE, NTILE, RANK+PARTITION, LAG, FILTER+ROLLUP). Puedes copiarlas tal cual a la Sección 3 (solo te faltaría la captura), o usarlas como referencia y escribir tú la tuya.
-
-### Pregunta 7
-```sql
-SELECT c.company_name AS cliente,
-       c.country AS pais,
-       COUNT(o.order_id) AS num_pedidos,
-       COALESCE(MAX(o.order_date)::text, 'SIN PEDIDOS') AS ultimo_pedido
-FROM customers c
-LEFT JOIN orders o ON o.customer_id = c.customer_id
-GROUP BY c.company_name, c.country
-ORDER BY num_pedidos ASC;
-```
-- `LEFT JOIN` y no `INNER JOIN` → si fuera INNER, los clientes sin pedidos desaparecerían.
-- `COUNT(o.order_id)` y no `COUNT(*)` → `COUNT(*)` contaría 1 también para los clientes sin pedidos.
-- `COALESCE(..., 'SIN PEDIDOS')` → sustituye el NULL de `MAX(order_date)` cuando no hay pedidos.
-
-
-### Pregunta 13
-```sql
-SELECT c.company_name AS cliente,
-       c.country AS pais,
-       COUNT(o.order_id) AS pedidos_realizados
-FROM customers c
-LEFT JOIN orders o ON o.customer_id = c.customer_id
-WHERE NOT EXISTS (
-    SELECT 1
-    FROM orders o2
-    INNER JOIN order_details od ON od.order_id = o2.order_id
-    INNER JOIN products p ON p.product_id = od.product_id
-    INNER JOIN categories cat ON cat.category_id = p.category_id
-    WHERE o2.customer_id = c.customer_id
-      AND cat.category_name = 'Seafood'
-)
-GROUP BY c.company_name, c.country
-ORDER BY pedidos_realizados DESC;
-```
-- `NOT EXISTS` + subconsulta correlacionada (`o2.customer_id = c.customer_id`) → comprueba cliente a cliente si existe algún pedido con Seafood.
-- `NOT EXISTS` y no `NOT IN` → si `NOT IN` trae algún `NULL`, el resultado sale vacío sin error visible.
-
-### Pregunta 17
-```sql
-WITH facturacion_cliente AS (
-    SELECT c.customer_id,
-           c.company_name,
-           SUM(ROUND((od.unit_price::numeric) * od.quantity * (1 - od.discount::numeric), 2)) AS facturacion
-    FROM customers c
-    INNER JOIN orders o ON o.customer_id = c.customer_id
-    INNER JOIN order_details od ON od.order_id = o.order_id
-    GROUP BY c.customer_id, c.company_name
-),
-clientes_segmentados AS (
-    SELECT *,
-           NTILE(4) OVER (ORDER BY facturacion DESC) AS cuartil
-    FROM facturacion_cliente
-),
-clientes_etiquetados AS (
-    SELECT *,
-           CASE cuartil
-               WHEN 1 THEN 'A - Estratégico'
-               WHEN 2 THEN 'B - Consolidado'
-               WHEN 3 THEN 'C - Ocasional'
-               WHEN 4 THEN 'D - Marginal'
-           END AS segmento
-    FROM clientes_segmentados
-)
-SELECT segmento,
-       COUNT(*) AS num_clientes,
-       ROUND(SUM(facturacion), 2) AS facturacion_segmento,
-       ROUND(100.0 * SUM(facturacion) / SUM(SUM(facturacion)) OVER (), 2) AS porcentaje_sobre_total
-FROM clientes_etiquetados
-GROUP BY segmento
-ORDER BY segmento;
-```
-- CTE 1 reduce pedidos+líneas a un número por cliente; CTE 2 reparte en cuartiles con `NTILE(4)`; CTE 3 traduce el cuartil a etiqueta.
-- `SUM(SUM(facturacion)) OVER ()` → el SUM interior agrega por segmento, el `OVER()` sin PARTITION suma ese resultado ya agregado sobre TODAS las filas → total general para el %.
-
-### Pregunta 18
-```sql
-WITH ventas_producto AS (
-    SELECT p.product_id,
-           p.product_name,
-           c.category_name,
-           SUM(od.quantity) AS unidades,
-           ROUND(SUM((od.unit_price::numeric) * od.quantity * (1 - od.discount::numeric)), 2) AS facturacion
-    FROM products p
-    INNER JOIN categories c ON c.category_id = p.category_id
-    INNER JOIN order_details od ON od.product_id = p.product_id
-    GROUP BY p.product_id, p.product_name, c.category_name
-),
-ranking AS (
-    SELECT *,
-           RANK() OVER (PARTITION BY category_name ORDER BY facturacion DESC) AS posicion_en_categoria,
-           RANK() OVER (ORDER BY facturacion DESC)                            AS posicion_global
-    FROM ventas_producto
-)
-SELECT category_name AS categoria,
-       posicion_en_categoria,
-       product_name AS producto,
-       unidades,
-       facturacion,
-       posicion_global
-FROM ranking
-WHERE posicion_en_categoria <= 3
-ORDER BY category_name, posicion_en_categoria;
-```
-- Dos `RANK()`: uno con `PARTITION BY category_name` (podio por familia), otro sin partición (ranking global).
-- El filtro `posicion_en_categoria <= 3` va en el SELECT final sobre la CTE, porque una ventana no se puede filtrar en el WHERE donde se calcula.
-
-### Pregunta 19
-```sql
-WITH facturacion_mensual AS (
-    SELECT DATE_TRUNC('month', o.order_date) AS mes,
-           ROUND(SUM((od.unit_price::numeric) * od.quantity * (1 - od.discount::numeric)), 2) AS facturacion
-    FROM orders o
-    INNER JOIN order_details od ON od.order_id = o.order_id
-    WHERE o.order_date >= '1997-01-01' AND o.order_date < '1998-01-01'
-    GROUP BY DATE_TRUNC('month', o.order_date)
-)
-SELECT mes,
-       facturacion,
-       SUM(facturacion) OVER (ORDER BY mes) AS acumulado,
-       ROUND(AVG(facturacion) OVER (ORDER BY mes ROWS BETWEEN 2 PRECEDING AND CURRENT ROW), 2) AS media_movil_3m,
-       LAG(facturacion) OVER (ORDER BY mes) AS mes_anterior,
-       ROUND(100.0 * (facturacion - LAG(facturacion) OVER (ORDER BY mes))
-             / LAG(facturacion) OVER (ORDER BY mes), 2) AS variacion_pct
-FROM facturacion_mensual
-ORDER BY mes;
-```
-- `SUM(...) OVER (ORDER BY mes)` sin marco → acumulado por defecto. `AVG(...) ROWS BETWEEN 2 PRECEDING AND CURRENT ROW` → marco explícito, obligatorio para la media móvil.
-- `LAG(facturacion)` trae el valor de la fila anterior sin self join. La primera fila da NULL en `mes_anterior` y en `variacion_pct` (correcto).
-
-### Pregunta 20
-```sql
-WITH facturacion_categoria_anio AS (
-    SELECT c.category_name,
-           EXTRACT(YEAR FROM o.order_date)::int AS anio,
-           (od.unit_price::numeric) * od.quantity * (1 - od.discount::numeric) AS importe
-    FROM categories c
-    INNER JOIN products p ON p.category_id = c.category_id
-    INNER JOIN order_details od ON od.product_id = p.product_id
-    INNER JOIN orders o ON o.order_id = od.order_id
-)
-SELECT COALESCE(category_name, 'TOTAL GENERAL') AS categoria,
-       ROUND(SUM(importe) FILTER (WHERE anio = 1996), 2) AS f_1996,
-       ROUND(SUM(importe) FILTER (WHERE anio = 1997), 2) AS f_1997,
-       ROUND(SUM(importe) FILTER (WHERE anio = 1998), 2) AS f_1998,
-       ROUND(SUM(importe), 2) AS total,
-       ROUND(100.0 * SUM(importe) / SUM(SUM(importe)) OVER (), 2) AS peso_pct,
-       CASE
-           WHEN SUM(importe) FILTER (WHERE anio = 1998) > SUM(importe) FILTER (WHERE anio = 1997) THEN 'CRECIÓ'
-           WHEN SUM(importe) FILTER (WHERE anio = 1998) < SUM(importe) FILTER (WHERE anio = 1997) THEN 'DECRECIÓ'
-           ELSE 'IGUAL'
-       END AS tendencia
-       -- OJO: 1996 solo tiene medio año (jul-dic) y 1998 solo hasta mayo, la tendencia no es comparación justa sin normalizar.
-FROM facturacion_categoria_anio
-GROUP BY ROLLUP(category_name)
-ORDER BY category_name NULLS LAST;
-```
-- `SUM(importe) FILTER (WHERE anio = 1997)` es el pivotado: suma solo cuando se cumple la condición, una columna por año.
-- `GROUP BY ROLLUP(category_name)` añade la fila de totales (con `category_name` en NULL); `COALESCE` la etiqueta como `'TOTAL GENERAL'`.
