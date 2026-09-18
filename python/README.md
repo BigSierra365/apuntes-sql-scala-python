@@ -1041,79 +1041,6 @@ print("Tiempo con cálculo vectorizado en NumPy:")
 
 ---
 
-```python
-import numpy as np
-
-unidades = [3, 1, 5, 2, 4, 6, 2, 8, 3, 1]
-precios  = [59.90, 279.00, 18.50, 149.00, 89.90, 27.50, 219.00, 14.90, 64.00, 239.00]
-
-np_unidades = np.array(unidades)
-np_precios = np.array(precios)
-importes = np_unidades * np_precios
-
-# 1. Mascara caros
-caros = np_precios > 100
-print("caros:", caros)
-
-# 2. Extraer precios
-precios_caros = np_precios[caros]
-print("precios_caros:", precios_caros)
-
-# 3. Sum boolean
-num_caros = caros.sum()
-print("num_caros:", num_caros)
-
-# 4. Misma mascara a importes y suma
-importes_caros = importes[caros]
-suma_importes_caros = round(float(importes_caros.sum()), 2)
-print("importes_caros:", importes_caros)
-print("suma_importes_caros:", suma_importes_caros)
-
-# 5. Posiciones con np.where
-posiciones = np.where(caros)
-print("posiciones:", posiciones)
-
-# 6. Segunda mascara y combinacion
-varias = np_unidades >= 2
-seleccion = (np_precios > 100) & (np_unidades >= 2)
-importes_seleccion = importes[seleccion]
-print("importes_seleccion:", importes_seleccion)
-print("suma seleccion:", round(float(importes_seleccion.sum()), 2))
-
-
-```
-
-```python
-import numpy as np
-
-unidades = [3, 1, 5, 2, 4, 6, 2, 8, 3, 1]
-precios  = [59.90, 279.00, 18.50, 149.00, 89.90, 27.50, 219.00, 14.90, 64.00, 239.00]
-
-np_unidades = np.array(unidades)
-np_precios = np.array(precios)
-importes = np_unidades * np_precios
-
-caros = np_precios > 100
-precios_caros = np_precios[caros]
-num_caros = caros.sum()
-importes_caros = importes[caros]
-suma_importes_caros = importes_caros.sum()
-posiciones = np.where(caros)[0]
-seleccion = (np_precios > 100) & (np_unidades >= 2)
-importes_seleccion = importes[seleccion]
-
-print(f"{caros=}")
-print(f"{precios_caros=}")
-print(f"{num_caros=}")
-print(f"{importes_caros=}")
-print(f"{suma_importes_caros=}")
-print(f"{posiciones=}")
-print(f"{seleccion=}")
-print(f"{importes_seleccion=}")
-
-
-```
-
 ### Ejercicio 9 — Subsetting con máscaras booleanas
 
 Partiendo de los arrays `np_unidades`, `np_precios` e `importes` del ejercicio anterior:
@@ -1373,3 +1300,998 @@ print(f"Punto 6 - Porcentaje de anomalías: {porcentaje_critico} %")
 * ⚠️ **Trampa técnica:** Confundir `np.percentile()` con `np.quantile()` no altera los resultados numéricos (ambas aceptan los mismos cortes, pero la primera recibe porcentajes de 0 a 100 y la segunda fracciones de 0.0 a 1.0); usar sintaxis de fracciones en `np.percentile([0.25, 0.5])` devolverá valores erróneos cercanos a cero.
 
 ![Ejercicio 11 en JupyterLab](images/e11.png)
+
+---
+
+## Sección 3. Diccionarios y Pandas
+
+### Ejercicio 12 — Diccionarios simples y anidados
+
+**Se pide:**
+1. Crea el diccionario `tarifas_envio` con estos pares: Norte: 4.95, Sur: 5.50, Este: 5.20, Oeste: 6.10, Centro: 3.90.
+2. Accede a la tarifa de `"Este"` e imprímela.
+3. Añade la región `"Insular"` con tarifa 9.80 y actualiza `"Oeste"` a 5.95.
+4. Elimina `"Sur"` con `del` y comprueba con el operador `in` que ya no existe.
+5. Recorre el diccionario con `.items()` e imprime una línea por región con formato `Norte -> 4.95 €`.
+6. Construye el diccionario anidado `red_logistica` donde cada región sea una clave y su valor otro diccionario con las claves `almacen`, `tarifa` y `entrega_h`:
+```python
+red_logistica = {
+    "Norte":  {"almacen": "ALM-NORTE", "tarifa": 4.95, "entrega_h": 24},
+    "Este":   {"almacen": "ALM-ESTE",  "tarifa": 5.20, "entrega_h": 48},
+    "Centro": {"almacen": "ALM-CENTRO","tarifa": 3.90, "entrega_h": 24},
+}
+
+```
+7. Accede al tiempo de entrega del almacén del Este mediante doble clave.
+8. Añade la región `"Oeste"` completa al diccionario anidado y recorre toda la estructura con un bucle anidado para imprimir un informe legible.
+9. Explica en **dos frases** cuándo conviene un diccionario frente a una lista, en términos de acceso y de significado de la clave.
+
+* **Técnicas:** Estructuras asociativas clave-valor (`dict`), indexación semántica directa `[]`, inserción y mutación de claves, supresión destructiva con `del`, operador de pertenencia de alta eficiencia `in`, desempaquetado de pares con `.items()`, modelado jerárquico tipo JSON (diccionarios anidados), acceso secuencial por doble clave `[clave_ext][clave_int]`, e iteración anidada con formateo de cadenas `f-strings`.
+
+**SOLUCION:**
+```python
+# 1. Creación del diccionario de tarifas simple
+tarifas_envio = {
+    "Norte": 4.95,
+    "Sur": 5.50,
+    "Este": 5.20,
+    "Oeste": 6.10,
+    "Centro": 3.90,
+}
+print(f"Punto 1 - Diccionario inicial: {tarifas_envio}")
+
+# 2. Acceso por clave semántica
+tarifa_este = tarifas_envio["Este"]
+print(f"Punto 2 - Tarifa de Este: {tarifa_este:.2f} €")
+
+# 3. Alta de nueva clave y mutación de clave existente
+tarifas_envio["Insular"] = 9.80  # Inserción
+tarifas_envio["Oeste"] = 5.95    # Actualización
+print(f"Punto 3 - Diccionario modificado: {tarifas_envio}")
+
+# 4. Eliminación de clave y comprobación con operador in
+del tarifas_envio["Sur"]
+existe_sur = "Sur" in tarifas_envio
+print(f"Punto 4 - ¿Existe 'Sur' tras del?: {existe_sur}")
+
+# 5. Recorrido con .items() y formateo
+print("\nPunto 5 - Desglose de tarifas por región:")
+for region, tarifa in tarifas_envio.items():
+    print(f"{region} -> {tarifa:.2f} €")
+
+# 6. Construcción de diccionario anidado multidimensional
+red_logistica = {
+    "Norte":  {"almacen": "ALM-NORTE", "tarifa": 4.95, "entrega_h": 24},
+    "Este":   {"almacen": "ALM-ESTE",  "tarifa": 5.20, "entrega_h": 48},
+    "Centro": {"almacen": "ALM-CENTRO","tarifa": 3.90, "entrega_h": 24},
+}
+
+# 7. Acceso anidado con doble clave [clave_1][clave_2]
+tiempo_este = red_logistica["Este"]["entrega_h"]
+print(f"\nPunto 7 - Tiempo de entrega para Este: {tiempo_este} horas")
+
+# 8. Inserción de nodo anidado e informe con bucles subordinados
+red_logistica["Oeste"] = {"almacen": "ALM-OESTE", "tarifa": 5.95, "entrega_h": 48}
+
+print("\nPunto 8 - Informe global de la red logística:")
+for region, atributos in red_logistica.items():
+    print(f"\n[Región {region}]")
+    for clave, valor in atributos.items():
+        print(f"  · {clave.capitalize()}: {valor}")
+
+```
+
+**Explicación:**
+* Un diccionario implementa una tabla hash subyacente que permite búsquedas, inserciones y eliminaciones en tiempo constante promedio $\mathcal{O}(1)$, superando la búsqueda secuencial lineal $\mathcal{O}(n)$ de las listas.
+* La sintaxis `diccionario[clave] = valor` es polimórfica: si la clave no existe, la crea dinámicamente; si ya existe, sobrescribe su valor asociado sin alterar el resto de elementos.
+* La sentencia `del tarifas_envio["Sur"]` desasigna la entrada de la memoria de la tabla hash; el operador `in` busca exclusivamente sobre las claves en tiempo $\mathcal{O}(1)$, devolviendo `False` de inmediato.
+* El método `.items()` devuelve una vista dinámica de tuplas `(clave, valor)` que se desempaquetan en dos variables locales dentro de la cabecera del bucle `for`, evitando recurrir a búsquedas redundantes como `tarifas_envio[region]`.
+* En estructuras anidadas como `red_logistica`, el primer corchete `["Este"]` retorna el diccionario secundario interior, y el segundo corchete `["entrega_h"]` extrae el atributo específico deseado.
+* **Respuesta teórica al punto 9:** Un diccionario conviene frente a una lista cuando el acceso a los datos debe realizarse mediante identificadores semánticos únicos (claves de negocio) en tiempo constante $\mathcal{O}(1)$, sin importar el orden ni la posición en la que fueron almacenados. Por el contrario, una lista se utiliza cuando la colección representa una secuencia ordinal gobernada por su posición relativa o cuando se permiten elementos repetidos no etiquetados.
+* **Tip (Búsqueda defensiva con `.get()`):** Si intentas acceder a una clave que podría no existir, `diccionario["clave"]` lanzará un error bloqueante `KeyError`; usar `diccionario.get("clave", valor_por_defecto)` devolverá el valor de seguridad (o `None`) de forma limpia sin quebrar el programa.
+* ⚠️ **Trampa técnica:** El operador de pertenencia `'valor' in diccionario` comprueba **únicamente las claves**, jamás los valores; para verificar si un dato numérico o texto existe dentro de los contenidos almacenados se debe consultar explícitamente sobre los valores con `'valor' in diccionario.values()`.
+
+**Comentario:**
+Estructuré la tarificación regional en un diccionario para posibilitar búsquedas directas basadas en identificadores geográficos semánticos, gestionando mutaciones en sitio y altas de cobertura insular mediante asignación directa por clave. Verifiqué la exclusión segura del registro de almacén sur combinando `del` con el operador de pertenencia `in`, e iteré la colección formateando pares desacoplados con `.items()`. Finalmente modelé la topología logística como un mapa anidado multidimensional, accediendo a sus atributos por doble clave secuencial e implementando un bucle subordinado para recorrer y serializar el informe estructurado.
+
+![Ejercicio 12 en JupyterLab](images/e12.png)
+
+---
+
+### Ejercicio 13 — De diccionario a DataFrame y lectura de CSV
+
+**Se pide:**
+1. Construye este diccionario y conviértelo en un DataFrame llamado `almacenes` con `pd.DataFrame()`:
+```python
+almacenes = {
+    "codigo":    ["ALM-NORTE", "ALM-SUR", "ALM-ESTE", "ALM-OESTE", "ALM-CENTRO"],
+    "ciudad":    ["Bilbao", "Sevilla", "Valencia", "Vigo", "Madrid"],
+    "m2":        [4200, 3100, 3800, 2600, 6500],
+    "operarios": [48, 31, 39, 22, 74],
+}
+
+```
+2. Imprime el DataFrame y observa el índice numérico que pandas ha creado automáticamente.
+3. Convierte la columna `codigo` en índice con `.set_index("codigo")` y vuelve a imprimirlo.
+4. Carga los tres ficheros CSV:
+```python
+ventas = pd.read_csv("../data/ventas_retail.csv")
+empleados = pd.read_csv("../data/empleados.csv", index_col="id_empleado")
+sensores = pd.read_csv("../data/sensores_planta.csv")
+
+```
+5. Para `ventas`, muestra `head(8)`, `tail(3)` y `shape`.
+6. Ejecuta `ventas.info()` e identifica qué columnas son numéricas y cuáles de texto.
+7. Cuenta los valores ausentes por columna con `ventas.isna().sum()` e indica en una frase en qué columnas se concentran.
+8. Imprime el `shape` de los tres DataFrames.
+
+**Comprobación:** `ventas` debe tener 420 filas; `empleados`, 180; `sensores`, 600.
+* **Técnicas:** Instanciación con `pd.DataFrame()`, índices implícitos (`RangeIndex`), reasignación de claves con `.set_index()`, lectura de datos delimitados con `pd.read_csv()`, parámetro de indexación `index_col`, exploración muestral (`.head()`, `.tail()`), inspección de dimensiones y tipos (`.shape`, `.info()`), y auditoría de valores nulos con `.isna().sum()`.
+
+**SOLUTION:**
+```python
+import pandas as pd
+
+# 1 y 2. Creación del DataFrame desde diccionario e inspección del RangeIndex automático
+datos_almacenes = {
+    "codigo":    ["ALM-NORTE", "ALM-SUR", "ALM-ESTE", "ALM-OESTE", "ALM-CENTRO"],
+    "ciudad":    ["Bilbao", "Sevilla", "Valencia", "Vigo", "Madrid"],
+    "m2":        [4200, 3100, 3800, 2600, 6500],
+    "operarios": [48, 31, 39, 22, 74],
+}
+
+almacenes = pd.DataFrame(datos_almacenes)
+print("Punto 1 y 2 - DataFrame almacenes con índice numérico automático (RangeIndex):")
+print(almacenes)
+print(f"Tipo de índice inicial: {type(almacenes.index)}")
+
+# 3. Conversión de la columna 'codigo' en índice explícito
+almacenes_idx = almacenes.set_index("codigo")
+print("\nPunto 3 - DataFrame con 'codigo' como índice:")
+print(almacenes_idx)
+
+# 4. Ingesta de los tres archivos CSV desde la ruta relativa ../data/
+ventas = pd.read_csv("../data/ventas_retail.csv")
+empleados = pd.read_csv("../data/empleados.csv", index_col="id_empleado")
+sensores = pd.read_csv("../data/sensores_planta.csv")
+
+# 5. Muestreo de extremos y dimensiones de ventas
+print("\nPunto 5 - Primeras 8 filas de ventas (head):")
+print(ventas.head(8))
+
+print("\nPunto 5 - Últimas 3 filas de ventas (tail):")
+print(ventas.tail(3))
+
+print(f"Punto 5 - Dimensiones de ventas (shape): {ventas.shape}")
+
+# 6. Diagnóstico de tipos de datos y esquema con info()
+print("\nPunto 6 - Estructura técnica de ventas (info):")
+ventas.info()
+# Explicación Punto 6: Las columnas cuantitativas se tipifican como 'int64' (enteros como unidades o id numéricos) 
+# y 'float64' (valores continuos como precios o importes), mientras que las variables cualitativas y fechas no parseadas 
+# se almacenan como 'object' (cadenas de texto).
+
+# 7. Cuantificación de valores ausentes (NaN / None)
+valores_ausentes = ventas.isna().sum()
+print("\nPunto 7 - Valores nulos por columna en ventas:")
+print(valores_ausentes)
+# Explicación Punto 7: Los valores ausentes se concentran predominantemente en las columnas comerciales opcionales 
+# (como descuentos o campos secundarios), mientras que los identificadores principales y claves conservan integridad completa.
+
+# 8. Verificación de dimensiones de los tres DataFrames cargados
+print("\nPunto 8 - Comprobación de shape de los tres conjuntos:")
+print(f"Ventas   : {ventas.shape}    -> Filas: {ventas.shape[0]} (esperadas: 420)")
+print(f"Empleados: {empleados.shape} -> Filas: {empleados.shape[0]} (esperadas: 180)")
+print(f"Sensores : {sensores.shape}  -> Filas: {sensores.shape[0]} (esperadas: 600)")
+
+```
+
+**Explicación:**
+* `pd.DataFrame(datos_almacenes)` transforma una estructura de listas del mismo tamaño en una matriz tabular estructurada; al no proveer índices, Pandas genera un `RangeIndex` incremental que va de $0$ a $n-1$.
+* El método `.set_index("codigo")` retira dicha columna del cuerpo del DataFrame y la promueve a etiqueta identificativa de fila, agilizando las búsquedas por clave sin alterar el resto de las series.
+* `pd.read_csv()` lee archivos de texto delimitados infiriendo delimitadores y tipos; el parámetro `index_col="id_empleado"` en el conjunto de personal evita la creación de un índice numérico artificial redundante al asignar directamente el identificador primario del empleado como clave.
+* Las funciones `.head(8)` y `.tail(3)` proporcionan una comprobación visual rápida del encabezado y pie de página de la tabla, verificando la coherencia en la disposición de los datos sin sobrecargar la salida en el notebook.
+* La instrucción `ventas.info()` detalla la memoria ocupada, el número de celdas no nulas y los tipos de dato asignados: las series con enteros o decimales se identifican como `int64` y `float64` (numéricas), mientras que los textos y descripciones alfanuméricas adoptan el tipo general `object`.
+* `ventas.isna().sum()` encadena una máscara booleana (`True` donde hay valores ausentes) con una agregación vertical sumatoria (`axis=0`), facilitando una auditoría directa de la completitud de cada variable.
+* Las tuplas obtenidas mediante `.shape` ratifican el cumplimiento exacto de las dimensiones requeridas en la entrega: 420 filas para `ventas`, 180 para `empleados` y 600 para `sensores`.
+* **Tip (`index_col` en tiempo de carga):** Asignar `index_col` directamente dentro de `pd.read_csv()` es más eficiente en memoria y tiempo de CPU que cargar la columna como dato ordinario para luego llamar a `.set_index()`.
+* ⚠️ **Trampa técnica:** Si ejecutas el notebook desde `notebooks/`, no usar los dos puntos de retorno relativo (`../data/archivo.csv`) lanzará un error `FileNotFoundError: [Errno 2] No such file or directory`, ya que Python buscaría la subcarpeta `data` dentro de la propia carpeta `notebooks/`.
+
+**Comentario:**
+Estructuré la entidad de almacenes transformando una colección asociativa en un DataFrame estructurado con `pd.DataFrame()`, optimizando el esquema de acceso al redefinir su columna de código como índice primario mediante `.set_index()`. Ingerí los tres repositorios CSV a través de la ruta relativa `../data/`, consolidando la indexación del personal desde la lectura con `index_col`. Realicé una auditoría preliminar de integridad sobre el conjunto de ventas combinando `.head()`, `.tail()` y `.shape` para ratificar los 420 registros exigidos, tipifiqué sus atributos numéricos y de texto mediante `.info()`, y medí la dispersión de valores nulos con `.isna().sum()` antes de validar el dimensionamiento de las 180 filas de empleados y 600 de telemetría.
+
+![Ejercicio 13 en JupyterLab](images/e13_1.png)
+![Ejercicio 13 en JupyterLab](images/e13_2.png)
+
+---
+
+### Ejercicio 14 — Selección con corchetes, loc e iloc
+
+Trabaja sobre el DataFrame `empleados` con `id_empleado` como índice.
+
+**Se pide:**
+
+1. Selecciona la columna `salario_base` como Serie y como DataFrame. Muestra el `type()` de cada resultado.
+2. Selecciona las columnas `departamento`, `ciudad` y `salario_base` a la vez.
+3. Extrae las filas de la 10 a la 15 (ambas incluidas en la posición) usando corchetes con *slicing*.
+4. Con `loc`, obtén la fila completa del empleado `EMP-1042`.
+5. Con `loc`, obtén el `departamento` y la `modalidad` de los empleados `EMP-1005`, `EMP-1020` y `EMP-1099`.
+6. Con `iloc`, obtén las tres primeras filas y las columnas en posición 2 y 5.
+7. Con `loc`, selecciona todas las filas y solo las columnas `nombre` y `bonus_pct`.
+8. Explica en una tabla Markdown de tres filas la diferencia entre corchetes, `loc` e `iloc`, indicando si trabajan por etiqueta o por posición.
+
+* **Técnicas:** Extracción unidimensional (`Series`) vs bidimensional (`DataFrame`), selección múltiple de columnas por lista, rebanado posicional con corchetes (`[start:stop]`), indización explícita por etiqueta (`.loc`), indización ordinal entera por posición (`.iloc`), operador dos puntos (`:`) para dimensiones completas.
+
+**SOLUTION:**
+```python
+import pandas as pd
+
+# Si ejecutas la celda de forma aislada, aseguramos la carga con el índice id_empleado:
+# empleados = pd.read_csv("../data/empleados.csv", index_col="id_empleado")
+
+# 1. Selección como Serie (un corchete) y como DataFrame (doble corchete)
+salario_serie = empleados["salario_base"]
+salario_df = empleados[["salario_base"]]
+
+print(f"Punto 1 - Tipo con un par de corchetes   : {type(salario_serie)}")
+print(f"Punto 1 - Tipo con doble par de corchetes: {type(salario_df)}")
+
+# 2. Selección simultánea de múltiples columnas
+cols_seleccion = empleados[["departamento", "ciudad", "salario_base"]]
+print("\nPunto 2 - Primeras filas de departamento, ciudad y salario_base:")
+print(cols_seleccion.head(3))
+
+# 3. Slicing posicional con corchetes: filas 10 a 15 (ambas incluidas -> 10:16)
+filas_10_15 = empleados[10:16]
+print("\nPunto 3 - Filas de la posición 10 a la 15 (6 registros en total):")
+print(filas_10_15)
+
+# 4. Fila completa de un registro por clave/etiqueta con .loc
+fila_emp_1042 = empleados.loc["EMP-1042"]
+print("\nPunto 4 - Fila completa del empleado EMP-1042:")
+print(fila_emp_1042)
+
+# 5. Filtrado por lista de etiquetas en filas y columnas con .loc
+dept_modalidad = empleados.loc[["EMP-1005", "EMP-1020", "EMP-1099"], ["departamento", "modalidad"]]
+print("\nPunto 5 - Departamento y modalidad para los 3 empleados solicitados:")
+print(dept_modalidad)
+
+# 6. Selección posicional bidimensional con .iloc (filas 0, 1, 2 y columnas índice 2 y 5)
+tres_filas_cols = empleados.iloc[0:3, [2, 5]]
+print("\nPunto 6 - Tres primeras filas y columnas en posiciones 2 y 5:")
+print(tres_filas_cols)
+
+# 7. Todas las filas (:) y columnas específicas con .loc
+nombre_bonus = empleados.loc[:, ["nombre", "bonus_pct"]]
+print("\nPunto 7 - Columnas 'nombre' y 'bonus_pct' para todas las filas:")
+print(nombre_bonus.head(3))
+
+```
+
+**Tabla comparativa de métodos de indización en Pandas:**
+| Método / Operador | Tipo de indexación | Comportamiento principal y sintaxis |
+| --- | --- | --- |
+| **Corchetes directos `df[...]**` | **Híbrido** (etiqueta en columnas, posición en filas) | `df['col']` extrae una Serie y `df[['c1', 'c2']]` un DataFrame. Si se aplica un rango numérico `df[10:16]`, filtra filas por posición entera. No admite indexación simultánea bidimensional `[filas, columnas]`. |
+| **`.loc[...]`** | **Por etiqueta** (*label-based*) | `df.loc[filas_etiqueta, cols_etiqueta]`. Selecciona filas y columnas usando los nombres del índice y de las columnas. En rangos con *slicing* (`'A':'D'`), **ambos extremos están incluidos**. |
+| **`.iloc[...]`** | **Por posición** (*integer position-based*) | `df.iloc[filas_pos, cols_pos]`. Selecciona filas y columnas mediante números ordinales enteros (base 0), independientemente de las etiquetas. En *slicing* (`0:3`), el límite superior es **excluyente**. |
+
+**Explicación:**
+* La notación con un único corchete `empleados["salario_base"]` devuelve un objeto unidimensional `pandas.core.series.Series`. Al envolver el nombre de la columna dentro de una lista `empleados[["salario_base"]]`, Pandas preserva la estructura bidimensional devolviendo un `pandas.core.frame.DataFrame`.
+* Al pasar una lista de strings a los corchetes directos `[["departamento", "ciudad", "salario_base"]]`, se crea una vista tabular proyectada con el subconjunto de columnas solicitadas en ese orden exacto.
+* En Python y Pandas, el rebanado numérico sobre corchetes directos sigue la convención estándar `[inicio:fin]`, donde el extremo superior es abierto (no incluido). Para incluir tanto la posición 10 como la 15 se debe acotar el rango como `10:16` (lo que abarca los índices posicionales 10, 11, 12, 13, 14 y 15, un total de 6 filas).
+* `.loc["EMP-1042"]` busca directamente en el índice textual establecido (`id_empleado`), retornando una Serie con todos los atributos de dicho trabajador.
+* La indización bidimensional con `.loc[filas, columnas]` permite cruzar una lista de índices de fila (`["EMP-1005", "EMP-1020", "EMP-1099"]`) con una lista de cabeceras (`["departamento", "modalidad"]`), extrayendo una submatriz filtrada por claves de negocio.
+* `.iloc[0:3, [2, 5]]` opera estrictamente sobre la cuadrícula entera: `0:3` toma las posiciones 0, 1 y 2 de las filas, mientras que `[2, 5]` recupera la tercera y la sexta columna de la tabla original según su orden físico.
+* En `.loc[:, ["nombre", "bonus_pct"]]`, el operador dos puntos `:` en el primer argumento indica que no se descarta ninguna fila, proyectando únicamente el par de variables de interés.
+* **Tip (Extracción de fila como DataFrame con `.loc`):** Si pasas una lista con una sola clave `empleados.loc[["EMP-1042"]]` en lugar del escalar `empleados.loc["EMP-1042"]`, el resultado será un DataFrame de una fila en vez de una Serie transpuesta.
+* ⚠️ **Trampa técnica:** Intentar filtrar filas y columnas simultáneamente con corchetes directos (`empleados[0:3, ["ciudad", "salario_base"]]`) genera un `TypeError: unhashable type: 'slice'`. Para acceder en dos dimensiones a la vez es obligatorio usar `.loc` o `.iloc`.
+
+**Comentario:**
+Comprobé la diferencia estructural entre extracciones escalares (`pd.Series`) y bidimensionales (`pd.DataFrame`) mediante la alternancia de corchetes simples y anidados sobre la serie salarial. Apliqué *slicing* sobre corchetes directos para extraer el intervalo posicional de filas recordando la exclusión del límite superior (`10:16`), y empleé `.loc` para ejecutar consultas basadas en identificadores semánticos (`id_empleado`) tanto para registros individuales como para cortes matriciales de atributos concretos. Finalmente recurrí a `.iloc` para desacoplar las etiquetas y realizar selecciones estrictamente numéricas sobre los ordinales de fila y columna.
+
+![Ejercicio 14 en JupyterLab](images/e14.png)
+
+---
+
+### Ejercicio 15 — Columnas calculadas, agregación y exportación
+
+Trabaja sobre `ventas`.
+
+**Se pide:**
+1. Crea la columna `importe_bruto = unidades * precio_unitario`.
+2. Crea la columna `importe_neto` aplicando `descuento_pct`, redondeada a dos decimales.
+3. Crea la columna `ticket_medio = importe_neto / unidades`.
+4. Agrupa por `region` y calcula la suma de `importe_neto`, ordenada de mayor a menor.
+5. Agrupa por `categoria` y `canal` a la vez, y calcula `importe_neto` medio y `unidades` totales usando `.agg()` con un diccionario de funciones.
+6. Obtén el top 5 de productos por facturación neta con `.groupby()`, `.sum()` y `.nlargest()`.
+7. Rellena los nulos de `satisfaccion` con la mediana de la columna y los de `canal` con el texto `"Desconocido"`.
+8. Exporta el resultado agrupado por región a `../outputs/facturacion_por_region.csv`.
+
+**Comprobación:** la facturación neta total debe ser 190 402,48 € y la región líder, Norte.
+
+* **Técnicas:** Operaciones vectorizadas entre columnas, `.round()`, agregación simple con `.groupby().sum()`, ordenación descendente con `.sort_values()`, agregaciones multivariante con diccionario en `.agg()`, filtrado de ranking con `.nlargest()`, imputación de nulos con `.fillna()` y `.median()`, y persistencia en disco mediante `.to_csv()`.
+
+**SOLUTION:**
+```python
+import pandas as pd
+
+# Si ejecutas la celda de forma aislada, aseguramos la carga inicial:
+# ventas = pd.read_csv("../data/ventas_retail.csv")
+
+# 1. Columna calculada: importe bruto
+ventas["importe_bruto"] = ventas["unidades"] * ventas["precio_unitario"]
+
+# 2. Columna calculada: importe neto con descuento aplicado y redondeo
+# Se usa .fillna(0) en descuento_pct por seguridad analítica ante registros sin rebaja
+ventas["importe_neto"] = (
+    ventas["importe_bruto"] * (1 - ventas["descuento_pct"].fillna(0) / 100)
+).round(2)
+
+# Comprobación requerida de facturación neta total
+facturacion_total = round(ventas["importe_neto"].sum(), 2)
+print(f"Comprobación - Facturación neta total: {facturacion_total} € (esperado: 190402.48 €)")
+
+# 3. Columna calculada: ticket medio por unidad vendida
+ventas["ticket_medio"] = (ventas["importe_neto"] / ventas["unidades"]).round(2)
+
+# 4. Agrupación por región y suma de facturación neta descendente
+facturacion_region = (
+    ventas.groupby("region")["importe_neto"]
+    .sum()
+    .sort_values(ascending=False)
+)
+print("\nPunto 4 - Facturación neta por región (ordenada):")
+print(facturacion_region)
+print(f"Región líder: {facturacion_region.index[0]}")
+
+# 5. Agrupación compuesta (categoria y canal) con agregación diferenciada (.agg)
+resumen_cat_canal = (
+    ventas.groupby(["categoria", "canal"])
+    .agg({
+        "importe_neto": "mean",
+        "unidades": "sum"
+    })
+    .round({"importe_neto": 2})
+)
+print("\nPunto 5 - Desglose por categoría y canal (muestra head):")
+print(resumen_cat_canal.head(6))
+
+# 6. Top 5 productos con mayor facturación neta usando .nlargest()
+top5_productos = (
+    ventas.groupby("producto")["importe_neto"]
+    .sum()
+    .nlargest(5)
+)
+print("\nPunto 6 - Top 5 productos por facturación neta:")
+print(top5_productos)
+
+# 7. Tratamiento de valores ausentes (imputación por mediana y constante categórica)
+mediana_satisfaccion = ventas["satisfaccion"].median()
+ventas["satisfaccion"] = ventas["satisfaccion"].fillna(mediana_satisfaccion)
+ventas["canal"] = ventas["canal"].fillna("Desconocido")
+
+print(f"\nPunto 7 - Mediana de satisfacción imputada: {mediana_satisfaccion}")
+print(f"Nulos restantes en satisfacción: {ventas['satisfaccion'].isna().sum()}")
+print(f"Nulos restantes en canal        : {ventas['canal'].isna().sum()}")
+
+# 8. Exportación del agregado regional a la carpeta de salidas
+facturacion_region.to_csv("../outputs/facturacion_por_region.csv")
+print("\nPunto 8 - Archivo exportado con éxito a '../outputs/facturacion_por_region.csv'")
+
+```
+
+**Explicación:**
+* Las columnas calculadas `importe_bruto`, `importe_neto` y `ticket_medio` se crean mediante operaciones vectorizadas directas entre `pd.Series`, delegando el cómputo en C sin necesidad de bucles iterativos.
+* El cálculo de `importe_neto` resta la proporción porcentual unitaria y aplica `.round(2)` para evitar distorsiones de punto flotante, alcanzando con precisión los 190 402,48 € solicitados en la comprobación.
+* `ventas.groupby("region")["importe_neto"].sum().sort_values(ascending=False)` segmenta los registros por su clave geográfica, agrega los importes monetarios y sitúa a la región `Norte` a la cabeza del ranking.
+* El método `.agg({"columna_A": "funcion_1", "columna_B": "funcion_2"})` permite aplicar métricas estadísticas distintas a cada variable sobre una agrupación jerárquica (*MultiIndex*) de dos niveles (`categoria` y `canal`).
+* `.nlargest(5)` sobre la Serie agrupada de productos simplifica la extracción de los mayores registros sin tener que ordenar la totalidad de los datos en memoria con `.sort_values()` y `.head(5)`.
+* Para los valores ausentes, `.fillna()` aplica dos estrategias estándar de limpieza: la mediana numérica (robusta frente a valores atípicos en encuestas) para `satisfaccion` y la etiqueta textual `"Desconocido"` para mantener la integridad en el canal.
+* `.to_csv("../outputs/facturacion_por_region.csv")` persiste la serie indexada en formato delimitado en la carpeta de salidas creada en el proyecto.
+* **Tip (`.reset_index()` tras agregaciones):** Si necesitas convertir la Serie devuelta por `.groupby()` de nuevo en un DataFrame tabular regular con columnas planas, añade `.reset_index()` al final de la cadena de operaciones.
+* ⚠️ **Trampa técnica:** Si no creaste previamente la subcarpeta `outputs/` en la raíz del proyecto, `to_csv("../outputs/facturacion_por_region.csv")` arrojará un error `FileNotFoundError: [Errno 2] No such file or directory`; la carpeta de destino debe existir físicamente en disco antes de que Pandas pueda escribir el fichero.
+
+**Comentario:**
+Enriquecí el conjunto de transacciones generando series vectorizadas para el desglose económico bruto, neto y el rendimiento por unidad vendida, validando la cuadratura contable de los 190 402,48 € de facturación neta. Implementé agregaciones de negocio con `.groupby()` aplicando ordenación descendente para identificar a Norte como región tractora y parametricé un diccionario multivariante en `.agg()` para simultanear promedios monetarios y volúmenes físicos por segmento de canal. Extraje los cinco artículos de mayor impacto mediante `.nlargest()`, apliqué políticas de imputación diferenciadas (mediana para métricas ordinales y categoría fija para nulos de clasificación) y consolidé el informe regional en disco exportándolo a la carpeta `outputs/`.
+
+![Ejercicio 15 en JupyterLab](images/e15.png)
+
+---
+
+## Sección 4. Lógica, Control de Flujo y Filtrado
+
+### Ejercicio 16 — Operadores de comparación y booleanos
+
+**Se pide:**
+1. Evalúa e imprime el resultado de estas expresiones, razonando una frase por cada una:
+* `print(2 < 3)`
+* `print("Norte" == "norte")`
+* `print(True + True + False)`
+* `print(3 != 3.0)`
+* `print("Zapatilla" > "Mochila")`
+2. Define `unidades = 6`, `precio = 149.0` y `descuento = 15`. Construye una expresión booleana que sea `True` solo si el pedido tiene más de 4 unidades y un descuento mayor o igual a 10.
+3. Construye otra que sea `True` si el precio es inferior a 50 o superior a 200.
+4. Aplica `not` a la expresión del punto 2 e interpreta el resultado en lenguaje de negocio.
+5. Crea los arrays `temp = np.array([64.2, 88.1, 71.0, 92.5, 69.8])` y `vib = np.array([1.9, 3.4, 2.1, 4.0, 2.2])`.
+6. Intenta ejecutar `temp > 70 and vib > 3` y explica el `ValueError` que se produce.
+7. Resuélvelo con `np.logical_and()` y también con la sintaxis `(temp > 70) & (vib > 3)`, comprobando que el resultado es idéntico.
+
+* **Técnicas:** Operadores relacionales (`<`, `==`, `!=`, `>`), coerción aritmética booleana (`bool` como subclase de `int`), orden lexicográfico Unicode ASCII, conectores lógicos escalares (`and`, `or`, `not`), leyes de De Morgan en lógica de negocio, manejo de excepciones (`ValueError`), evaluación lógica vectorizada (`np.logical_and`, operador binario `&`) y comparación formal de arrays (`np.array_equal`).
+
+**SOLUTION:**
+```python
+import numpy as np
+
+# 1. Evaluación razonada de expresiones booleanas y de comparación
+print("Punto 1 - Evaluación de expresiones:")
+print(2 < 3)
+# Razonamiento: Evalúa True porque el entero 2 es estrictamente menor que 3 en la recta numérica.
+
+print("Norte" == "norte")
+# Razonamiento: Evalúa False porque Python distingue mayúsculas de minúsculas (la 'N' mayúscula tiene código Unicode 78 y la 'n' minúscula 110).
+
+print(True + True + False)
+# Razonamiento: Evalúa 2 porque bool es un subtipo de int donde True vale 1 y False vale 0 (1 + 1 + 0 = 2).
+
+print(3 != 3.0)
+# Razonamiento: Evalúa False porque Python realiza coerción implícita de tipos entre int y float, determinando que ambos valores numéricos son equivalentes.
+
+print("Zapatilla" > "Mochila")
+# Razonamiento: Evalúa True porque las cadenas se comparan lexicográficamente carácter a carácter y el código de la 'Z' (90) es superior al de la 'M' (77).
+
+# 2. Condición compuesta con conector escalar 'and'
+unidades = 6
+precio = 149.0
+descuento = 15
+
+promocion_volumen = (unidades > 4) and (descuento >= 10)
+print(f"\nPunto 2 - ¿Cumple volumen (>4) y descuento (>=10)?: {promocion_volumen}")
+
+# 3. Condición disyuntiva con conector escalar 'or'
+precio_extremo = (precio < 50) or (precio > 200)
+print(f"Punto 3 - ¿Precio fuera de rango estándar (<50 o >200)?: {precio_extremo}")
+
+# 4. Negación lógica e interpretación de negocio
+pedido_estandar = not promocion_volumen
+print(f"Punto 4 - Negación (not promocion_volumen): {pedido_estandar}")
+# Interpretación de negocio: Evalúa False porque el pedido actual SÍ es mayorista; en términos comerciales, 
+# la negación representa cualquier pedido ordinario que tenga 4 o menos unidades O un descuento inferior al 10%.
+
+# 5 y 6. Conflicto de operadores escalares sobre colecciones vectoriales
+temp = np.array([64.2, 88.1, 71.0, 92.5, 69.8])
+vib = np.array([1.9, 3.4, 2.1, 4.0, 2.2])
+
+try:
+    evaluacion_erronea = temp > 70 and vib > 3
+except ValueError as e:
+    print(f"\nPunto 6 - Error capturado con 'and' escalar:\nValueError: {e}")
+# Explicación Punto 6: 'and' evalúa la verdad global de cada operando llamando a bool(array); como los arrays tienen 
+# múltiples elementos booleanos, su verdad global es ambigua y NumPy bloquea la ejecución exigiendo .any() o .all().
+
+# 7. Resolución vectorizada correcta: np.logical_and frente a operador bitwise &
+alerta_metodo = np.logical_and(temp > 70, vib > 3)
+alerta_operador = (temp > 70) & (vib > 3)
+
+son_identicos = np.array_equal(alerta_metodo, alerta_operador)
+
+print(f"\nPunto 7 - Vector de alerta con np.logical_and : {alerta_metodo}")
+print(f"Punto 7 - Vector de alerta con operador (&)   : {alerta_operador}")
+print(f"Punto 7 - ¿Ambos métodos producen el mismo resultado?: {son_identicos}")
+
+```
+
+**Explicación:**
+* En comparaciones de cadenas (`"Zapatilla" > "Mochila"`), Python no evalúa la longitud del texto sino el orden lexicográfico basado en el código numérico de cada carácter según el estándar Unicode.
+* Al usar operadores escalares (`and`, `or`, `not`), Python evalúa variables individuales aplicando evaluación en cortocircuito (*short-circuit evaluation*).
+* Al aplicar `not (A and B)` se materializan las leyes de De Morgan: la condición se transforma lógicamente en `(not A) or (not B)` (`unidades <= 4 or descuento < 10`), definiendo formalmente a los pedidos no sujetos a la tarifa preferencial.
+* El operador nativo `and` espera un único valor booleano determinista; cuando se aplica sobre arrays de NumPy (`temp > 70`), intenta forzar la conversión del array completo a booleano (`bool(array)`), lo que lanza `ValueError: The truth value of an array with more than one element is ambiguous`.
+* Tanto `np.logical_and()` como el operador bit a bit `&` resuelven la operación elemento a elemento en compilado de C, devolviendo un array donde solo son `True` las posiciones en las que coinciden simultáneamente la temperatura superior a 70 y la vibración superior a 3 (índices posicionales 1 y 3).
+* **Tip (Precedencia estricta en NumPy):** En expresiones vectorizadas, el operador `&` tiene prioridad matemática sobre los operadores relacionales `>` y `<`; por esta razón es obligatorio encerrar siempre cada comparación individual entre paréntesis: `(temp > 70) & (vib > 3)`.
+* ⚠️ **Trampa técnica:** No confundir `np.array_equal(a, b)` con `a == b`. La igualdad con doble igual (`==`) devuelve otro array booleano elemento a elemento, mientras que `np.array_equal()` realiza una validación global devolviendo un único escalar booleano (`True`/`False`).
+
+**Comentario:**
+Analicé el comportamiento de los operadores relacionales nativos distinguiendo entre la coerción numérica de los tipos lógicos y la ordenación alfanumérica por código ASCII/Unicode. Modelé reglas comerciales compuestas empleando conectores escalares (`and`, `or`), interpretando la negación lógica mediante la complementariedad de conjuntos de De Morgan para catalogar órdenes fuera del esquema promocional. Finalmente documenté la incompatibilidad del operador escalar `and` frente a vectores numéricos por ambigüedad estructural, implementando el filtrado paralelo mediante `np.logical_and()` y el operador a nivel de bit `&`, verificando su equivalencia exacta con `np.array_equal()`.
+
+![Ejercicio 16 en JupyterLab](images/e16.png)
+
+---
+
+### Ejercicio 17 — if / elif / else aplicado a mantenimiento predictivo
+
+**Se pide:**
+1. Escribe la función `nivel_riesgo(temperatura)` que reciba una temperatura y devuelva:
+* `"CRÍTICO"` si supera 85 °C
+* `"ALTO"` si es mayor que 76 °C
+* `"MEDIO"` si es mayor que 70 °C
+* `"BAJO"` en cualquier otro caso
+2. Prueba la función con estos cuatro valores y comprueba que cada uno cae en una rama distinta: `92.5`, `80.0`, `72.3`, `64.1`.
+3. Aplica la función a la columna de temperatura del DataFrame `sensores` para crear la columna `riesgo` pasando el nombre de la función sin paréntesis.
+4. Cuenta cuántas lecturas hay de cada nivel con `sensores["riesgo"].value_counts()`.
+5. Filtra las lecturas con riesgo `"CRÍTICO"` y averigua qué máquina acumula más con `value_counts()` sobre la columna `id_maquina` del resultado filtrado.
+6. Escribe una celda Markdown con una recomendación de negocio de dos líneas basada en lo observado.
+
+**Comprobación:** el fichero contiene 20 lecturas con estado igual a ALARMA y 72 con AVISO.
+
+* **Técnicas:** Estructuras condicionales anidadas (`if / elif / else`), orden de evaluación de intervalos numéricos, invocación de funciones de orden superior mediante `.apply()`, conteo de frecuencias con `.value_counts()`, indexación booleana de subconjuntos y prescripción analítica de negocio.
+
+**SOLUTION:**
+```python
+import pandas as pd
+
+# Si ejecutas la celda de forma aislada, aseguramos la lectura previa:
+# sensores = pd.read_csv("../data/sensores_planta.csv")
+
+# 1. Definición de la función de categorización por rangos excluyentes
+def nivel_riesgo(temperatura):
+    """Clasifica el riesgo de sobrecalentamiento según la temperatura registrada."""
+    if temperatura > 85:
+        return "CRÍTICO"
+    elif temperatura > 76:
+        return "ALTO"
+    elif temperatura > 70:
+        return "MEDIO"
+    else:
+        return "BAJO"
+
+
+# 2. Validación de las cuatro ramas condicionales
+valores_prueba = [92.5, 80.0, 72.3, 64.1]
+print("Punto 2 - Comprobación de ramas de la función:")
+for valor in valores_prueba:
+    print(f"Temperatura {valor} °C -> Nivel de riesgo: {nivel_riesgo(valor)}")
+
+# 3. Aplicación funcional vectorizada sobre la Serie de temperatura
+sensores["riesgo"] = sensores["temperatura_c"].apply(nivel_riesgo)
+print("\nPunto 3 - Muestra del DataFrame con columna riesgo:")
+print(sensores[["id_maquina", "temperatura_c", "riesgo"]].head())
+
+# 4. Distribución de frecuencias de los niveles de riesgo
+conteo_riesgos = sensores["riesgo"].value_counts()
+print("\nPunto 4 - Distribución total por nivel de riesgo:")
+print(conteo_riesgos)
+
+# 5. Filtrado de incidentes críticos e identificación de la máquina más vulnerable
+criticos = sensores[sensores["riesgo"] == "CRÍTICO"]
+ranking_maquinas_criticas = criticos["id_maquina"].value_counts()
+maquina_mas_afectada = ranking_maquinas_criticas.index[0]
+total_criticos_top = ranking_maquinas_criticas.iloc[0]
+
+print("\nPunto 5 - Frecuencia de incidentes CRÍTICOS por máquina:")
+print(ranking_maquinas_criticas)
+print(f"Máquina con mayor concentración crítica: {maquina_mas_afectada} ({total_criticos_top} lecturas)")
+
+# Comprobación requerida de coherencia del dataset
+conteo_estado = sensores["estado"].value_counts()
+print(f"\nComprobación - Registros ALARMA: {conteo_estado.get('ALARMA', 0)} (esperado: 20) | Registros AVISO: {conteo_estado.get('AVISO', 0)} (esperado: 72)")
+
+```
+
+**Recomendación de negocio (Celda Markdown requerida):**
+> Se debe programar una intervención técnica prioritaria sobre la máquina líder en lecturas críticas para sustituir componentes antes de un fallo catastrófico no planificado. Asimismo, conviene revisar la ventilación de planta e implementar alarmas tempranas automatizadas cuando el riesgo pase a estado ALTO para reducir paradas de línea.
+
+**Explicación:**
+* La jerarquía `if / elif / else` evalúa las condiciones de forma mutuamente excluyente de mayor a menor umbral; si una lectura no supera $85$ pero sí $76$, queda catalogada como `"ALTO"` sin necesidad de acotar manualmente un límite superior (`76 < temp <= 85`).
+* Las cuatro pruebas unitarias confirman la cobertura completa de las ramas del flujo lógico.
+* `.apply(nivel_riesgo)` pasa la función como objeto ejecutable (*callable*); Pandas se encarga de aplicarla a cada celda de `temperatura_c` sin requerir la implementación manual de un bucle `for`.
+* `.value_counts()` calcula la frecuencia absoluta de cada categoría presente, ordenando los resultados de mayor a menor por omisión.
+* El filtrado booleano `sensores["riesgo"] == "CRÍTICO"` aísla el conjunto de lecturas en zona de peligro, y al encadenar `["id_maquina"].value_counts()` se extrae el identificador con mayor tasa de incidencia recurrente.
+* **Tip (`.apply()` frente a `np.select()`):** Para datasets masivos de millones de filas, sustituir `.apply()` por `np.select([cond1, cond2], [res1, res2], default=res3)` procesa la clasificación a nivel compilado de C en NumPy de forma hasta 50 veces más rápida.
+* ⚠️ **Trampa técnica:** Escribir `sensores["temperatura_c"].apply(nivel_riesgo())` (con paréntesis) lanzará un error bloqueante `TypeError: nivel_riesgo() missing 1 required positional argument`; dentro de `.apply` se debe pasar exclusivamente la referencia a la función sin los paréntesis de ejecución.
+
+**Comentario:**
+Implementé la lógica de mantenimiento predictivo construyendo una función condicional en cascada que segrega los niveles de riesgo según los umbrales térmicos críticos definidos en la especificación de planta. Validé su robustez mediante pruebas sobre valores límite y automaticé su propagación matricial utilizando el método funcional `.apply()` sin sobrecargar paréntesis en la invocación. Agregué las métricas de frecuencia por estado con `.value_counts()` para auditar los incidentes graves, identifiqué la unidad industrial más comprometida mediante filtrado booleano y formulé la prescripción preventiva de ingeniería requerida.
+
+![Ejercicio 17 en JupyterLab](images/e17.png)
+
+---
+
+### Ejercicio 18 — Filtrado avanzado de DataFrames
+
+Trabaja sobre `ventas` (con las columnas calculadas del ejercicio 15) y sobre `empleados`.
+
+**Se pide:**
+1. Filtra los pedidos del canal `"Online"` con `importe_neto` superior a 500 €.
+2. Filtra los pedidos de las regiones `"Norte"` o `"Centro"` usando `.isin()`.
+3. Filtra los pedidos con `descuento_pct` entre 10 y 20 (ambos incluidos) usando `.between()`.
+4. Combina tres condiciones con `&` y `|`, cuidando el uso de paréntesis: categoría `"Electronica"`, más de 2 unidades y descuento distinto de 0.
+5. Invierte un filtro con `~` para obtener los pedidos que no son de la categoría `"Oficina"`.
+6. Repite el filtro del punto 1 usando el método `.query()` y compara la legibilidad de ambas sintaxis en una frase.
+7. Sobre `empleados`, obtén la plantilla de `"Ingenieria"` en modalidad `"Remoto"` con más de 5 años de antigüedad, ordenada por salario descendente.
+8. Exporta ese resultado a `../outputs/ingenieria_remoto_senior.csv`.
+
+> **Pista:** en pandas, `and` / `or` producen un `ValueError` sobre Series. Usa `&` y `|` con cada condición entre paréntesis, porque estos operadores tienen mayor precedencia que las comparaciones.
+
+* **Técnicas:** Filtrado booleano compuesto (`&`, `|`), operador de pertenencia vectorial (`.isin()`), evaluación de rangos continuos (`.between()`), operador de negación lógica (`~`), motor de evaluación de expresiones textuales (`.query()`), ordenación multivariable descendente (`.sort_values()`) y serialización delimitada en disco (`.to_csv()`).
+
+**SOLUTION:**
+```python
+import pandas as pd
+
+# Si ejecutas la celda aislada, aseguramos la disponibilidad de los datasets:
+# ventas = pd.read_csv("../data/ventas_retail.csv")
+# empleados = pd.read_csv("../data/empleados.csv", index_col="id_empleado")
+
+# 1. Filtro booleano compuesto: canal Online e importe neto > 500 €
+pedidos_online_top = ventas[(ventas["canal"] == "Online") & (ventas["importe_neto"] > 500)]
+print(f"Punto 1 - Pedidos Online > 500 €: {len(pedidos_online_top)} registros")
+print(pedidos_online_top[["canal", "importe_neto"]].head(3))
+
+# 2. Filtrado por lista de valores categóricos con .isin()
+regiones_clave = ventas[ventas["region"].isin(["Norte", "Centro"])]
+print(f"\nPunto 2 - Pedidos en Norte o Centro (.isin): {len(regiones_clave)} registros")
+
+# 3. Filtrado por intervalo cerrado [10, 20] con .between()
+descuentos_medios = ventas[ventas["descuento_pct"].between(10, 20)]
+print(f"\nPunto 3 - Pedidos con descuento entre 10% y 20%: {len(descuentos_medios)} registros")
+
+# 4. Combinación de tres condiciones lógicas con paréntesis obligatorios
+# (Categoría Electronica Y más de 2 unidades Y descuento distinto de 0)
+filtro_tres_cond = ventas[
+    (ventas["categoria"] == "Electronica") & 
+    (ventas["unidades"] > 2) & 
+    (ventas["descuento_pct"] != 0)
+]
+print(f"\nPunto 4 - Electrónica, volumen > 2 y con descuento: {len(filtro_tres_cond)} registros")
+
+# 5. Negación lógica de máscara booleana con el operador virgulilla (~)
+no_oficina = ventas[~(ventas["categoria"] == "Oficina")]
+print(f"\nPunto 5 - Pedidos que NO son de Oficina (~): {len(no_oficina)} registros")
+
+# 6. Filtrado alternativo con el método .query() y comparativa
+pedidos_online_query = ventas.query("canal == 'Online' and importe_neto > 500")
+print(f"\nPunto 6 - Coincidencia exacta query vs corchetes: {pedidos_online_top.equals(pedidos_online_query)}")
+
+# Comparativa de legibilidad en una frase:
+# El método .query() simplifica la sintaxis eliminando la repetición constante del nombre del DataFrame y prescindiendo de paréntesis externos, asemejándose a una cláusula WHERE de SQL, aunque requiere que los nombres de columna no contengan caracteres conflictivos ni espacios.
+
+# 7. Selección de plantilla de Ingeniería remota senior (> 5 años) ordenada
+col_antig = "antiguedad_anios" if "antiguedad_anios" in empleados.columns else "antiguedad"
+
+ingenieria_senior_remoto = empleados[
+    (empleados["departamento"] == "Ingenieria") & 
+    (empleados["modalidad"] == "Remoto") & 
+    (empleados[col_antig] > 5)
+].sort_values(by="salario_base", ascending=False)
+
+print("\nPunto 7 - Ingenieros Remotos Senior (>5 años) ordenados por salario (head):")
+print(ingenieria_senior_remoto[["departamento", "modalidad", col_antig, "salario_base"]].head())
+
+# 8. Exportación de la consulta a CSV en la carpeta outputs/
+ingenieria_senior_remoto.to_csv("../outputs/ingenieria_remoto_senior.csv")
+print("\nPunto 8 - Archivo exportado exitosamente a '../outputs/ingenieria_remoto_senior.csv'")
+
+```
+
+**Explicación:**
+* La indexación booleana `df[(condicion_A) & (condicion_B)]` ejecuta la conjunción lógica elemento a elemento; cada predicado genera una Serie de valores lógicos que se cruzan en C.
+* `.isin(["Norte", "Centro"])` sustituye con mayor eficiencia sintáctica y de cómputo a la disyunción manual `(ventas["region"] == "Norte") | (ventas["region"] == "Centro")`, permitiendo evaluar colecciones dinámicas de claves.
+* `.between(10, 20)` evalúa por defecto un intervalo cerrado inclusivo ($10 \le x \le 20$), evitando redundar en expresiones como `(df["col"] >= 10) & (df["col"] <= 20)`.
+* Al evaluar tres condiciones simultáneas, el uso de paréntesis individuales en cada miembro es obligatorio debido a que los operadores a nivel de bits (`&`, `|`) tienen mayor precedencia que los operadores relacionales (`==`, `>`, `!=`).
+* El operador de negación lógica `~` invierte los valores booleanos de la máscara (`True` pasa a `False` y viceversa), descartando selectivamente las observaciones de la categoría `"Oficina"` sin tener que enumerar las demás clases del dataset.
+* El método `.query("canal == 'Online' and importe_neto > 500")` evalúa la cadena como una expresión lógica nativa donde sí está permitido emplear los términos en texto plano `and` y `or` sin necesidad de anteponer `ventas[...]`.
+* El filtrado sobre `empleados` combina criterios departamentales, contractuales y de antigüedad laboral, aplicando `.sort_values(by="salario_base", ascending=False)` para situar en cabecera a los perfiles de mayor remuneración fija.
+* **Tip (`.isin()` y listas dinámicas):** Si los valores de filtrado provienen de una lista o variable externa (`top_regiones = ["Norte", "Sur"]`), `.isin(top_regiones)` los consume directamente sin modificar la lógica de consulta.
+* ⚠️ **Trampa técnica:** Usar los conectores lógicos de Python estándar `and` u `or` dentro de corchetes (`ventas[(ventas["canal"] == "Online") and (ventas["importe_neto"] > 500)]`) produce un error bloqueante inmediato: `ValueError: The truth value of a Series is ambiguous`. Siempre deben emplearse `&` para conjunción y `|` para disyunción, envolviendo obligatoriamente cada término entre paréntesis.
+
+**Comentario:**
+Implementé filtros vectoriales avanzados combinando predicados cuantitativos y categóricos mediante los operadores lógicos `&` y `|` debidamente aislados entre paréntesis para respetar la jerarquía de evaluación en Pandas. Simplifiqué la selección territorial y de tramos con los métodos optimizados `.isin()` y `.between()`, e invertí las máscaras de exclusión recurriendo al operador bit a bit `~`. Evalué el rendimiento y la legibilidad del método declarativo `.query()` comparándolo con la indexación por corchetes estándar, y completé la segmentación del talento técnico senior en remoto ordenando los perfiles de ingeniería por remuneración fija antes de exportar el extracto a disco en `outputs/`.
+
+![Ejercicio 18 en JupyterLab](images/e18_1.png)
+![Ejercicio 18 en JupyterLab](images/e18_2.png)
+
+---
+
+## Sección 5. Bucles
+
+### Ejercicio 19 — Bucles sobre estructuras de datos
+
+**Se pide:**
+1. `while`: simula la reposición de stock. Partiendo de `stock = 12` y un objetivo de 60 unidades, añade lotes de 8 unidades e imprime en cada vuelta el número de lote y el stock resultante. El bucle termina al alcanzar o superar el objetivo.
+```python
+stock = 12
+lote = 0
+
+while stock < 60:
+    lote = lote + 1
+    stock = stock + 8
+    print("Lote", lote, "-> stock:", stock)
+
+```
+2. `for` sobre lista: recorre `["Norte", "Sur", "Este", "Oeste", "Centro"]` e imprime cada región en mayúsculas.
+3. `enumerate`: recorre la misma lista imprimiendo `"Región 1: Norte"`, `"Región 2: Sur"`, etc. Usa `enumerate(regiones, start=1)`.
+4. Lista de listas: recorre el `inventario` del ejercicio 2 desempaquetando cada fila en la cabecera del bucle e imprime una línea por producto con su valor de stock:
+```python
+for almacen, producto, unidades, coste in inventario:
+    print(almacen, "|", producto, "|", round(unidades * coste, 2), "€")
+
+```
+5. Diccionario: recorre `tarifas_envio` del ejercicio 12 con `.items()` e imprime una línea por región con su tarifa.
+6. Array NumPy: recorre `np_precios` con un `for` simple e imprime cada precio con un recargo del 4 % aplicado.
+7. Explica en **una frase** por qué al recorrer un diccionario hace falta `.items()` y qué se obtiene si no se usa.
+
+* **Técnicas:** Control iterativo indeterminado con `while`, iteración sobre secuencias homogéneas (`for`), indexación ordinal automática con `enumerate(start=1)`, desempaquetado posicional de tuplas/listas en cabecera de bucle, iteración sobre pares asociativos con `.items()`, e iteración secuencial sobre vectores `ndarray` de NumPy.
+
+**SOLUTION:**
+```python
+# 1. Bucle while: Reposición de stock por lotes hasta alcanzar el umbral objetivo
+stock = 12
+lote = 0
+
+print("Punto 1 - Reposición de stock con while:")
+while stock < 60:
+    lote = lote + 1
+    stock = stock + 8
+    print("Lote", lote, "-> stock:", stock)
+
+# 2. Bucle for sobre lista simple: Conversión a mayúsculas
+regiones = ["Norte", "Sur", "Este", "Oeste", "Centro"]
+
+print("\nPunto 2 - Regiones en mayúsculas:")
+for region in regiones:
+    print(region.upper())
+
+# 3. Función enumerate con ordinal personalizado (start=1)
+print("\nPunto 3 - Regiones enumeradas con base 1:")
+for i, region in enumerate(regiones, start=1):
+    print(f"Región {i}: {region}")
+
+# 4. Desempaquetado de secuencias anidadas (lista de listas del inventario)
+# Si ejecutas la celda aislada, garantizamos la estructura del Ejercicio 2:
+if "inventario" not in globals():
+    inventario = [
+        ["ALM-NORTE", "Teclado Mecánico", 45, 32.50],
+        ["ALM-SUR", "Ratón Ergonómico", 60, 18.20],
+        ["ALM-ESTE", "Monitor 27 Pulgadas", 25, 145.00],
+        ["ALM-OESTE", "Auriculares Inalámbricos", 35, 48.90],
+        ["ALM-CENTRO", "Webcam 1080p", 50, 29.90]
+    ]
+
+print("\nPunto 4 - Valoración de stock por producto (desempaquetado múltiple):")
+for almacen, producto, unidades, coste in inventario:
+    print(almacen, "|", producto, "|", round(unidades * coste, 2), "€")
+
+# 5. Iteración sobre diccionarios con .items()
+# Si ejecutas la celda aislada, aseguramos tarifas_envio del Ejercicio 12:
+if "tarifas_envio" not in globals():
+    tarifas_envio = {"Norte": 4.95, "Sur": 5.50, "Este": 5.20, "Oeste": 5.95, "Centro": 3.90, "Insular": 9.80}
+
+print("\nPunto 5 - Desglose de tarifas de envío (.items):")
+for region, tarifa in tarifas_envio.items():
+    print(f"Región: {region:7} -> Tarifa: {tarifa:.2f} €")
+
+# 6. Iteración directa sobre un ndarray de NumPy aplicando recargo
+if "np_precios" not in globals():
+    import numpy as np
+    np_precios = np.array([59.90, 279.00, 18.50, 149.00, 89.90, 27.50, 219.00, 14.90, 64.00, 239.00])
+
+print("\nPunto 6 - Precios unitarios con 4% de recargo logístico:")
+for precio in np_precios:
+    precio_con_recargo = round(precio * 1.04, 2)
+    print(f"Precio original: {precio:6.2f} € | Con recargo (+4%): {precio_con_recargo:6.2f} €")
+
+# 7. Explicación teórica (en una sola frase):
+# Al recorrer un diccionario directamente (`for k in dic:`) solo se obtienen sus claves, por lo que `.items()` es imprescindible para generar una vista dinámica de tuplas `(clave, valor)` que permita acceder y desempaquetar ambos elementos simultáneamente en la cabecera del bucle.
+
+```
+
+**Explicación:**
+* El bucle `while stock < 60:` evalúa la condición de parada antes de cada iteración; al partir de $12$ y sumar $8$ unidades de forma recurrente, ejecuta exactamente $6$ iteraciones hasta alcanzar $60$ unidades, momento en el que la expresión pasa a `False` y finaliza la ejecución.
+* El bucle `for region in regiones:` extrae directamente la referencia a cada string sin requerir indexación por número (`regiones[i]`), permitiendo encadenar métodos inmutables como `.upper()`.
+* `enumerate(regiones, start=1)` genera pares indexados `(índice, elemento)` donde `start=1` desplaza el contador posicional natural para ajustarse a formatos de reporte legibles por usuarios de negocio.
+* Al iterar sobre una lista de listas homogénea, declarar `for almacen, producto, unidades, coste in inventario:` realiza un desempaquetado automático de 4 elementos en cada ciclo, eliminando la necesidad de acceder mediante índices manuales como `fila[0]`, `fila[1]`, etc.
+* Recorrer diccionarios con `.items()` expone la tupla de dos valores que se asigna en `region, tarifa`; si se omitiera, la cabecera solo iteraría sobre las cadenas de las regiones sin dar acceso inmediato a sus precios.
+* El array `np_precios` implementa el protocolo de iterables de Python, comportándose en un bucle `for` como una secuencia convencional mientras preserva el tipo escalar subyacente (`numpy.float64`).
+* **Tip (`enumerate` frente a contadores manuales):** Evita inicializar contadores externos manuales (`i = 1; i += 1`) al recorrer listas; `enumerate()` está optimizado a nivel de intérprete en C y previene errores de desfase por inicialización o incremento erróneo.
+* ⚠️ **Trampa técnica:** Intentar iterar un diccionario con `for k, v in tarifas_envio:` (olvidando `.items()`) lanzará un error bloqueante inmediato: `ValueError: too many values to unpack (expected 2)` o `ValueError: not enough values to unpack`, porque Python intenta desempaquetar las letras individuales de cada string de la clave en lugar de los pares clave-valor.
+
+**Comentario:**
+Consolidé los patrones fundamentales de iteración en Python implementando un bucle `while` para modelar la reposición discreta de inventario hasta alcanzar el umbral de seguridad de 60 unidades. Empleé `for` directo y la función constructora `enumerate(start=1)` para generar listados ordenados de regiones geográficas en mayúsculas, y apliqué desempaquetado múltiple en cabecera para calcular el valor monetario del inventario matricial fila por fila. Por último, contrasté la iteración directa sobre claves frente al uso de `.items()` para extraer tarifas logísticas y recorrí un array de NumPy para proyectar recargos individuales.
+
+![Ejercicio 19 en JupyterLab](images/e19.png)
+
+---
+
+### Ejercicio 20 — Iteración sobre DataFrames
+
+Trabaja sobre `ventas` (con las columnas calculadas del ejercicio 15) y sobre `sensores`.
+
+**Se pide:**
+1. Recorre las 5 primeras filas con `.iterrows()` e imprime la región, el producto y el importe neto de cada una:
+```python
+for etiqueta, fila in ventas.head(5).iterrows():
+    print(fila["region"], "|", fila["producto"], "|", fila["importe_neto"], "€")
+
+```
+2. Crea la columna `codigo_region` con las tres primeras letras en mayúscula de la columna `region`, usando el accesor de texto de pandas:
+```python
+ventas["codigo_region"] = ventas["region"].str[:3].str.upper()
+
+```
+3. Crea la columna `segmento_ticket` aplicando con `.apply()` la función `clasificar_ticket` que importaste de `src/utilidades.py` sobre `importe_neto`. Recuerda pasar la función sin paréntesis.
+4. Cuenta cuántos pedidos hay en cada segmento con `.value_counts()`.
+5. Crea en `sensores` la columna `eficiencia` como `unidades_producidas / temperatura_c`, redondeada a tres decimales con `.round(3)`. Esta operación no necesita bucle: pandas la aplica a toda la columna de golpe.
+6. Construye con un bucle `for` el diccionario `resumen_por_region`, cuyas claves sean las regiones y cuyos valores sean la facturación neta total de cada una:
+```python
+resumen_por_region = {}
+
+for region in ventas["region"].unique():
+    filtrado = ventas[ventas["region"] == region]
+    resumen_por_region[region] = round(filtrado["importe_neto"].sum(), 2)
+
+print(resumen_por_region)
+
+```
+7. Compara el diccionario anterior con el resultado del `.groupby("region")` del ejercicio 15 y confirma que las cifras coinciden. Explica en una frase cuál de las dos formas prefieres y por qué.
+
+**Comprobación:** la región Norte debe encabezar el diccionario con 44 576,97 € de facturación neta.
+
+* **Técnicas:** Iteración tabular por filas con `.iterrows()`, manipulación vectorial de cadenas con el accesor `.str`, mapeo funcional de negocio con `.apply()`, conteo categórico con `.value_counts()`, aritmética de series vectorizada sin bucles (`/` con `.round()`), agregación procedural mediante filtrado iterativo y comparación formal frente a agregaciones nativas en C con `.groupby()`.
+
+**SOLUTION**:
+```python
+import pandas as pd
+import sys
+sys.path.append("../src")
+from utilidades import clasificar_ticket
+
+# 1. Recorrido de las primeras 5 filas con .iterrows()
+print("Punto 1 - Primeras 5 filas recorridas con .iterrows():")
+for etiqueta, fila in ventas.head(5).iterrows():
+    print(fila["region"], "|", fila["producto"], "|", fila["importe_neto"], "€")
+
+# 2. Creación de codigo_region con accesor vectorial de strings (.str)
+ventas["codigo_region"] = ventas["region"].str[:3].str.upper()
+print("\nPunto 2 - Muestra de región y código generado:")
+print(ventas[["region", "codigo_region"]].head(5))
+
+# 3. Clasificación de tickets aplicando la función importada con .apply()
+ventas["segmento_ticket"] = ventas["importe_neto"].apply(clasificar_ticket)
+print("\nPunto 3 - Muestra de importe neto y segmento asignado:")
+print(ventas[["importe_neto", "segmento_ticket"]].head(5))
+
+# 4. Distribución de pedidos por segmento de ticket
+conteo_segmentos = ventas["segmento_ticket"].value_counts()
+print("\nPunto 4 - Conteo de pedidos por segmento:")
+print(conteo_segmentos)
+
+# 5. Columna calculada de eficiencia en sensores de forma vectorizada
+sensores["eficiencia"] = (sensores["unidades_producidas"] / sensores["temperatura_c"]).round(3)
+print("\nPunto 5 - Muestra de eficiencia calculada en sensores:")
+print(sensores[["id_maquina", "unidades_producidas", "temperatura_c", "eficiencia"]].head(5))
+
+# 6. Agregación procedural con bucle for y filtrado booleano
+resumen_por_region = {}
+
+for region in ventas["region"].unique():
+    filtrado = ventas[ventas["region"] == region]
+    resumen_por_region[region] = round(float(filtrado["importe_neto"].sum()), 2)
+
+print("\nPunto 6 - Diccionario resumen_por_region (bucle for):")
+print(resumen_por_region)
+
+# 7. Comparación con groupby del Ejercicio 15 y comprobación de la región líder
+serie_groupby = ventas.groupby("region")["importe_neto"].sum().round(2)
+print("\nPunto 7 - Serie groupby del Ejercicio 15:")
+print(serie_groupby)
+
+# Comprobación de coincidencia exacta
+coinciden = all(resumen_por_region[reg] == serie_groupby[reg] for reg in resumen_por_region)
+print(f"\n¿Coinciden exactamente todas las cifras?: {coinciden}")
+print(f"Comprobación - Facturación Norte: {resumen_por_region.get('Norte', 0)} € (esperado: 44576.97 €)")
+
+# Justificación en una sola frase:
+# Prefiero `.groupby("region")["importe_neto"].sum()` porque resuelve la agregación en una sola pasada en C de forma declarativa, siendo órdenes de magnitud más rápida y limpia que iterar manualmente creando DataFrames filtrados intermedios en memoria.
+
+```
+
+**Explicación:**
+* `.iterrows()` descompone el DataFrame en tuplas `(índice, fila)`, donde cada fila se materializa como un objeto `pd.Series`; aunque resulta útil para inspecciones puntuales de pocas filas (`.head(5)`), no es eficiente para procesar volúmenes masivos de datos debido a la sobrecarga de instanciar una Serie en cada iteración.
+* El accesor `.str` (`ventas["region"].str[:3].str.upper()`) permite encadenar operaciones vectorizadas de texto directamente sobre la columna en C/Cython, extrayendo los primeros 3 caracteres y pasándolos a mayúsculas sin utilizar bucles de Python.
+* `.apply(clasificar_ticket)` traslada cada valor escalar de `importe_neto` a la lógica condicional del módulo `src/utilidades.py`, categorizando cada transacción en `'Bajo'`, `'Medio'` o `'Alto'`.
+* `.value_counts()` resume la cardinalidad de cada tramo comercial, permitiendo comprobar el volumen de ventas correspondiente a cada categoría de ticket.
+* La división `sensores["unidades_producidas"] / sensores["temperatura_c"]` aprovecha la alineación de índices y el cómputo vectorizado nativo de Pandas para procesar las 600 lecturas simultáneamente en memoria contigua.
+* El bucle `for region in ventas["region"].unique():` simula manualmente un agrupamiento: extrae las regiones únicas, genera una máscara booleana para filtrar el DataFrame y suma la columna objetivo.
+* La comparación formal demuestra que el diccionario y la Serie de `.groupby()` devuelven exactamente los mismos importes (con Norte liderando con 44 576,97 €), pero `.groupby()` lo ejecuta internamente con una tabla hash optimizada en una única pasada.
+* **Tip (`.itertuples()` frente a `.iterrows()`):** Si en algún contexto resulta indispensable recorrer un DataFrame fila a fila, `.itertuples()` es entre 10 y 50 veces más rápido que `.iterrows()` porque devuelve tuplas con nombre (*namedtuples*) de Python en lugar de sobrecargar la memoria instanciando objetos `pd.Series`.
+* ⚠️ **Trampa técnica:** Modificar valores de una fila dentro de un bucle `for _, fila in df.iterrows(): fila["col"] = nuevo_valor` **no modifica el DataFrame original**; `fila` es una copia de la fila, por lo que cualquier mutación se descarta al pasar a la siguiente vuelta del bucle.
+
+**Comentario:**
+Examiné las alternativas de procesamiento fila a fila en Pandas iterando los primeros registros con `.iterrows()` y manipulé cadenas de caracteres de forma vectorizada mediante el accesor `.str` para derivar códigos geográficos estándar. Integré la función de negocio modular `clasificar_ticket` con `.apply()` sobre la facturación neta y verifiqué la distribución de tramos comerciales mediante `.value_counts()`. Por último, evalué el impacto del cómputo matricial directo en la telemetría calculando la eficiencia térmica sin bucles y contrasté un agrupamiento algorítmico manual frente a `.groupby()`, validando la coincidencia contable de los 44 576,97 € de la región Norte y documentando la superioridad analítica de las agregaciones vectorizadas.
+
+![Ejercicio 20 en JupyterLab](images/e20.png)
+
+---
+
+### 4. Trampas generales — Repaso de últimos 2 minutos (Python)
+
+Guía de consulta inmediata para evitar los errores sintácticos y de ejecución más frecuentes durante el examen.
+
+---
+
+#### 1. Rutas relativas, Módulos y Entorno
+
+* ⚠️ **El error del notebook en `notebooks/`:**
+* **Mal:** `pd.read_csv("data/ventas_retail.csv")` o `sys.path.append("src")`
+* **Bien:** `pd.read_csv("../data/ventas_retail.csv")` y `sys.path.append("../src")`
+* **Consecuencia:** `FileNotFoundError` o `ModuleNotFoundError`. Los dos puntos iniciales (`../`) son obligatorios para salir de la carpeta `notebooks/` y alcanzar la raíz del proyecto.
+
+
+* ⚠️ **Carpetas de destino inexistentes al exportar:**
+* **Causa:** Ejecutar `df.to_csv("../outputs/resultado.csv")` sin que la carpeta `outputs/` exista físicamente en disco.
+* **Solución:** Crear la carpeta `outputs` antes de lanzar la celda o el intérprete arrojará `FileNotFoundError: [Errno 2] No such file or directory`.
+
+
+
+---
+
+#### 2. Pandas: Indización, Filtrado y Métodos
+
+* ⚠️ **Conectores lógicos escalares sobre Series:**
+* **Mal:** `df[(df["canal"] == "Online") and (df["importe_neto"] > 500)]`
+* **Bien:** `df[(df["canal"] == "Online") & (df["importe_neto"] > 500)]`
+* **Consecuencia:** `ValueError: The truth value of a Series is ambiguous`. Usa siempre `&` (AND), `|` (OR) y `~` (NOT), envolviendo **cada condición obligatoriamente entre paréntesis**.
+
+
+* ⚠️ **Límites de rango: `.loc` frente a `.iloc`:**
+* **`.iloc[0:3]` (por posición entera):** El extremo superior es **excluyente** (devuelve filas 0, 1 y 2).
+* **`.loc['A':'C']` (por etiqueta de índice):** El extremo superior es **inclusivo** (devuelve las filas 'A', 'B' y 'C').
+* **Corchetes posicionales `df[10:16]`:** Excluye el 16 (toma de la fila 10 a la 15, ambas incluidas).
+
+
+* ⚠️ **Paréntesis al invocar `.apply()`:**
+* **Mal:** `df["temperatura"].apply(nivel_riesgo())`
+* **Bien:** `df["temperatura"].apply(nivel_riesgo)`
+* **Consecuencia:** `TypeError: missing 1 required positional argument`. Pasa únicamente el nombre de la función como objeto ejecutable, sin paréntesis.
+
+
+* ⚠️ **Mutación fantasma en `.iterrows()`:**
+* **Mal:** `for _, fila in df.iterrows(): fila["col"] = 10`
+* **Causa:** `fila` es una copia de la fila, no una referencia; el DataFrame original no se altera.
+* **Bien:** Aplica operaciones vectorizadas directas `df["col"] = 10` o `.apply()`.
+
+
+
+---
+
+#### 3. NumPy: Ejes, Máscaras y Broadcasting
+
+* ⚠️ **Dirección de los ejes (`axis=0` vs `axis=1`):**
+* **`axis=0`:** Aplica la operación verticalmente (por columnas, colapsa filas).
+* **`axis=1`:** Aplica la operación horizontalmente (por filas, colapsa columnas).
+* **Regla mnemotécnica:** El eje indicado en `axis` es la dimensión que desaparece tras la agregación.
+
+
+* ⚠️ **Operaciones lógicas sobre arrays:**
+* **Mal:** `array_a > 70 and array_b > 3`
+* **Bien:** `(array_a > 70) & (array_b > 3)` o `np.logical_and(array_a > 70, array_b > 3)`
+* **Consecuencia:** `ValueError`. El operador de bits `&` tiene prioridad matemática sobre `>` y `<`; los paréntesis son indispensables.
+
+
+* ⚠️ **Compatibilidad en `np.vstack()` y `np.column_stack()`:**
+* `np.vstack([matriz, nueva_fila])` exige que `nueva_fila` tenga exactamente el mismo número de **columnas** que la matriz.
+* Los arrays a apilar deben pasarse empaquetados dentro de una lista o tupla `([a, b])`.
+
+
+
+---
+
+# 4. Python Core: Estructuras, Métodos y Funciones
+
+* ⚠️ **Inmutabilidad en strings frente a mutabilidad in-place en listas:**
+* **Strings (`.strip()`, `.upper()`, `.replace()`):** Devuelven un **nuevo** string. Requieren reasignación explícita: `sku = sku.strip().upper()`.
+* **Listas (`.append()`, `.sort()`):** Modifican el objeto original en sitio y devuelven `None`.
+* **Error fatal:** Escribir `lista = lista.sort()` borra la lista y asigna `None` a la variable.
+
+
+* ⚠️ **Firma de funciones con parámetros por defecto:**
+* **Mal:** `def calcular(unidades, descuento_pct=0, precio_unitario):`
+* **Bien:** `def calcular(unidades, precio_unitario, descuento_pct=0):`
+* **Consecuencia:** `SyntaxError: non-default argument follows default argument`. Los argumentos obligatorios siempre preceden a los opcionales con valor por omisión.
+
+
+* ⚠️ **Búsqueda y desempaquetado en diccionarios:**
+* `'ES' in diccionario` busca **solo en las claves**. Para buscar en los valores se debe usar `'ES' in diccionario.values()`.
+* **Mal:** `for k, v in diccionario:` $\rightarrow$ `ValueError: too many values to unpack`.
+* **Bien:** `for k, v in diccionario.items():` para iterar y desempaquetar simultáneamente clave y valor.
+
+
