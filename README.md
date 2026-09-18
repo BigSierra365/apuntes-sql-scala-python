@@ -1,1 +1,0 @@
-# apuntes-sql-scala-python
