@@ -4,6 +4,28 @@
 
 ---
 
+# 0. Preparación del entorno
+
+Ejecuta estos comandos en tu terminal antes de empezar:
+
+```bash
+# 1. Crear el entorno virtual con Python 3.12
+python3.12 -m venv .venv
+
+# 2. Activar el entorno
+source .venv/bin/activate        # Linux / macOS
+.venv\Scripts\activate           # Windows (PowerShell)
+
+# 3. Instalar dependencias
+pip install --upgrade pip
+pip install jupyterlab numpy pandas
+
+# 4. Lanzar JupyterLab
+jupyter lab
+```
+
+---
+
 # 1. Matrices de referencia por tipo de técnica
 
 Divididas en subíndices — busca primero el bloque (Listas, Pandas, Numpy...) y luego la fila.
