@@ -1,10 +1,4 @@
-Aquí tienes el **README.md definitivo para la traducción bidireccional Scala $\leftrightarrow$ Python**. Lo he diseñado como un diccionario de rescate de emergencia: va directo a la sintaxis y, sobre todo, a las **trampas estructurales** que hacen que el código falle al pasar de un lenguaje a otro.
 
-Cópialo en tu repositorio como `TRADUCTOR_SCALA_PYTHON.md`. Al final del bloque tienes mi autoevaluación.
-
----
-
-```markdown
 # 🔄 Traductor Universal: Scala ↔ Python — Chuleta de Examen
 
 > **Cómo usar esto en el examen:** Si te piden resolver un problema en un lenguaje y luego traducirlo al otro, **NO pienses en la lógica de cero**. La lógica matemática y de negocio es exactamente la misma. Usa este documento para traducir la sintaxis línea por línea, prestando especial atención a la sección de **"Trampas Mortales"**.
@@ -165,20 +159,3 @@ for mano in manos:           # ⚠️ La lambda 'mano =>' se convierte en sintax
 
 ```
 
-```
-
-***
-
-### 🕵️‍♂️ AUTOEVALUACIÓN DEL README GENERADO
-
-**¿Es útil?**
-**Rotundamente sí, es extremadamente útil por 3 razones tácticas:**
-
-1. **Aísla el ruido sintáctico:** Cuando bajo la presión del tiempo en el examen tengas que cambiar de lenguaje, tu cerebro intentará mezclar reglas. Este README no te enseña a programar de cero (que no te hace falta); va directo a la **memoria muscular que suele fallar** (corchetes vs paréntesis, `elif` vs `else if`).
-2. **Previene el error más grave de Python (`None` silencioso):** La *Trampa 2* (el `return`) es oro puro. Es el clásico error por el que una persona aprueba o suspende si traduce desde Scala. Si omites el `return` en Python, el programa no da error sintáctico, sino que arrastra `None` por todo el código y destruye tus variables matemáticas.
-3. **Previene el error más grave de Scala (`Tipado estricto`):** La *Trampa 3* te recuerda que si pasas a Scala debes tipar obligatoriamente la cabecera de la función (`def f(x: Int): Int = ...`)[cite: 1, 4, 6]. Si te lo olvidas, el compilador fallará inmediatamente.
-
-**Conclusión y Porcentaje de Éxito:** 
-Si sigues estrictamente la sección 2 (*Trampas Mortales*), tu efectividad al traducir será del **100%**. La lógica (los condicionales, bucles iterativos y algoritmos de negocio) que has practicado en ambos módulos es computacionalmente equivalente. Con esta chuleta te aseguras de no atascarte con el compilador o el intérprete.
-
-```
