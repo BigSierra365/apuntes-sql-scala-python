@@ -655,80 +655,7 @@ Invertí la secuencia inicial mediante *slicing* con paso negativo `[::-1]` y va
 
 ## Sección 2. Funciones y Paquetes
 
-```python
-def calcular_importe(unidades, precio_unitario, descuento_pct=0):
-    """Calcula el importe neto de una línea de pedido redondeado a dos decimales."""
-    bruto = unidades * precio_unitario
-    neto = bruto * (1 - descuento_pct / 100)
-    return round(neto, 2)
-
-def resumen_pedido(unidades, precio_unitario, descuento_pct=0):
-    """Devuelve una tupla con (importe_bruto, ahorro, importe_neto) redondeados a dos decimales."""
-    bruto = round(unidades * precio_unitario, 2)
-    neto = calcular_importe(unidades, precio_unitario, descuento_pct)
-    ahorro = round(bruto - neto, 2)
-    return (bruto, ahorro, neto)
-
-# Check 1:
-print("Check 1:", calcular_importe(3, 59.90, 10))
-
-# Point 3: Call with keyword arguments and unpack
-bruto_ej, ahorro_ej, neto_ej = resumen_pedido(unidades=3, precio_unitario=59.90, descuento_pct=10)
-print(f"bruto: {bruto_ej}, ahorro: {ahorro_ej}, neto: {neto_ej}")
-
-# Point 5:
-pedidos = [
-    (3, 59.90, 10),
-    (1, 279.00, 0),
-    (5, 18.50, 20),
-    (2, 149.00, 5),
-    (4, 89.90, 15),
-]
-
-importes = [calcular_importe(u, p, d) for u, p, d in pedidos]
-print("importes:", importes)
-print("max:", max(importes))
-print("min:", min(importes))
-print("sorted:", sorted(importes))
-print("len:", len(importes))
-
-
-```
-
-```python
-def calc(u, p, d=0):
-    return round(u * p * (1 - d / 100), 2)
-
-print("test:", calc(3, 59.90, 10))
-pedidos = [
-    (3, 59.90, 10),
-    (1, 279.00, 0),
-    (5, 18.50, 20),
-    (2, 149.00, 5),
-    (4, 89.90, 15),
-]
-importes = [calc(*item) for item in pedidos]
-print("importes:", importes)
-print("max:", max(importes))
-print("min:", min(importes))
-print("sorted:", sorted(importes))
-print("len:", len(importes))
-
-
-```
-
 ### Ejercicio 5 — Funciones propias para el cálculo de importes
-
-```python
-pedidos = [
-    (3, 59.90, 10),
-    (1, 279.00, 0),
-    (5, 18.50, 20),
-    (2, 149.00, 5),
-    (4, 89.90, 15),
-]
-
-```
 
 **Se pide:**
 1. Define la función `calcular_importe(unidades, precio_unitario, descuento_pct=0)` que devuelva el importe neto redondeado a dos decimales. El parámetro `descuento_pct` debe tener valor por defecto.
@@ -736,6 +663,15 @@ pedidos = [
 3. Llama a `resumen_pedido` usando argumentos por palabra clave (*keyword arguments*) y desempaqueta el resultado en tres variables.
 4. Documenta ambas funciones con *docstring* y muestra la ayuda con `help(calcular_importe)`.
 5. Usa `max()`, `min()`, `sorted()` y `len()` sobre la lista `importes` que obtengas al aplicar `calcular_importe` a estos cinco pedidos.
+```python
+pedidos = [
+    (3, 59.90, 10),
+    (1, 279.00, 0),
+    (5, 18.50, 20),
+    (2, 149.00, 5),
+    (4, 89.90, 15),
+]
+```
 
 **Comprobación:** `calcular_importe(3, 59.90, 10)` debe devolver `161.73`.
 * **Técnicas:** Definición modular (`def`), argumentos posicionales y con valor por omisión (*default parameters*), argumentos por palabra clave (*kwargs*), retorno y desempaquetado de tuplas, documentación interna (*docstrings*), función de inspección `help()`, comprensión de listas con desempaquetado de tuplas `*` y funciones de agregación integradas (`max`, `min`, `sorted`, `len`).
@@ -1103,3 +1039,337 @@ print("Tiempo con cálculo vectorizado en NumPy:")
 
 ![Ejercicio 8 en JupyterLab](images/e08.png)
 
+---
+
+```python
+import numpy as np
+
+unidades = [3, 1, 5, 2, 4, 6, 2, 8, 3, 1]
+precios  = [59.90, 279.00, 18.50, 149.00, 89.90, 27.50, 219.00, 14.90, 64.00, 239.00]
+
+np_unidades = np.array(unidades)
+np_precios = np.array(precios)
+importes = np_unidades * np_precios
+
+# 1. Mascara caros
+caros = np_precios > 100
+print("caros:", caros)
+
+# 2. Extraer precios
+precios_caros = np_precios[caros]
+print("precios_caros:", precios_caros)
+
+# 3. Sum boolean
+num_caros = caros.sum()
+print("num_caros:", num_caros)
+
+# 4. Misma mascara a importes y suma
+importes_caros = importes[caros]
+suma_importes_caros = round(float(importes_caros.sum()), 2)
+print("importes_caros:", importes_caros)
+print("suma_importes_caros:", suma_importes_caros)
+
+# 5. Posiciones con np.where
+posiciones = np.where(caros)
+print("posiciones:", posiciones)
+
+# 6. Segunda mascara y combinacion
+varias = np_unidades >= 2
+seleccion = (np_precios > 100) & (np_unidades >= 2)
+importes_seleccion = importes[seleccion]
+print("importes_seleccion:", importes_seleccion)
+print("suma seleccion:", round(float(importes_seleccion.sum()), 2))
+
+
+```
+
+```python
+import numpy as np
+
+unidades = [3, 1, 5, 2, 4, 6, 2, 8, 3, 1]
+precios  = [59.90, 279.00, 18.50, 149.00, 89.90, 27.50, 219.00, 14.90, 64.00, 239.00]
+
+np_unidades = np.array(unidades)
+np_precios = np.array(precios)
+importes = np_unidades * np_precios
+
+caros = np_precios > 100
+precios_caros = np_precios[caros]
+num_caros = caros.sum()
+importes_caros = importes[caros]
+suma_importes_caros = importes_caros.sum()
+posiciones = np.where(caros)[0]
+seleccion = (np_precios > 100) & (np_unidades >= 2)
+importes_seleccion = importes[seleccion]
+
+print(f"{caros=}")
+print(f"{precios_caros=}")
+print(f"{num_caros=}")
+print(f"{importes_caros=}")
+print(f"{suma_importes_caros=}")
+print(f"{posiciones=}")
+print(f"{seleccion=}")
+print(f"{importes_seleccion=}")
+
+
+```
+
+### Ejercicio 9 — Subsetting con máscaras booleanas
+
+Partiendo de los arrays `np_unidades`, `np_precios` e `importes` del ejercicio anterior:
+
+```python
+unidades = [3, 1, 5, 2, 4, 6, 2, 8, 3, 1]
+precios  = [59.90, 279.00, 18.50, 149.00, 89.90, 27.50, 219.00, 14.90, 64.00, 239.00]
+
+```
+
+**Se pide:**
+1. Crea la máscara booleana `caros = np_precios > 100` e imprímela. Observa que es un array de `True` y `False` con la misma longitud que `np_precios`.
+2. Usa la máscara para extraer los precios que superan 100 €: `np_precios[caros]`.
+3. Cuenta cuántos productos caros hay con `caros.sum()` y explica en una frase por qué sumar booleanos devuelve un número.
+4. Aplica la misma máscara al array `importes` para obtener los importes de esas líneas. Calcula su suma.
+5. Obtén las posiciones que cumplen la condición con `np.where(caros)`.
+6. Crea una segunda máscara `varias = np_unidades >= 2` y combina ambas con `&`, recordando que cada condición va entre paréntesis:
+```python
+seleccion = (np_precios > 100) & (np_unidades >= 2)
+print(importes[seleccion])
+
+```
+
+**Comprobación:** hay 4 productos con precio unitario superior a 100 € y la suma de sus importes es 1 254,00 €.
+
+> **Pista:** con NumPy no se usan `and` ni `or`, sino `&` (y) y `|` (o). Sin los paréntesis el resultado es un error, porque `&` se evalúa antes que `>`.
+
+* **Técnicas:** Comparación vectorial, máscaras booleanas (*boolean indexing*), agregación booleana `.sum()`, indexación cruzada entre arrays homólogos, localización posicional con `np.where()`, composición lógica elemento a elemento con `&` y precedencia de operadores mediante paréntesis `()`.
+
+**SOLUCION:**
+```python
+import numpy as np
+
+# Inicialización de los arrays del ejercicio anterior
+unidades = [3, 1, 5, 2, 4, 6, 2, 8, 3, 1]
+precios  = [59.90, 279.00, 18.50, 149.00, 89.90, 27.50, 219.00, 14.90, 64.00, 239.00]
+
+np_unidades = np.array(unidades)
+np_precios = np.array(precios)
+importes = np_unidades * np_precios
+
+# 1. Creación de la máscara booleana sobre precios
+caros = np_precios > 100
+print(f"Punto 1 - Máscara 'caros':\n{caros}")
+print(f"Punto 1 - Misma longitud: {len(caros) == len(np_precios)}")
+
+# 2. Filtrado de precios unitarios mayores a 100 €
+precios_caros = np_precios[caros]
+print(f"Punto 2 - Precios > 100 €: {precios_caros}")
+
+# 3. Recuento de elementos True mediante suma booleana
+num_caros = caros.sum()
+print(f"Punto 3 - Total productos caros: {num_caros}")
+# Explicación Punto 3: Sumar un array de booleanos devuelve un número entero porque en Python
+# y NumPy el tipo bool es un subtipo de entero donde True se evalúa aritméticamente como 1 y False como 0.
+
+# 4. Reutilización de la máscara sobre el array importes y suma acumulada
+importes_caros = importes[caros]
+suma_caros = round(float(importes_caros.sum()), 2)
+print(f"Punto 4 - Importes de líneas caras: {importes_caros}")
+print(f"Punto 4 - Suma de importes caros: {suma_caros} €")
+
+# 5. Obtención de índices posicionales con np.where
+posiciones_caros = np.where(caros)
+print(f"Punto 5 - Índices de filas caras: {posiciones_caros[0]}")
+
+# 6. Combinación de condiciones lógicas con & y paréntesis obligatorios
+varias = np_unidades >= 2
+seleccion = (np_precios > 100) & (np_unidades >= 2)
+importes_seleccion = importes[seleccion]
+
+print(f"Punto 6 - Máscara compuesta 'seleccion':\n{seleccion}")
+print(f"Punto 6 - Importes (precio > 100 y unidades >= 2): {importes_seleccion}")
+
+```
+
+**Explicación:**
+* La expresión `np_precios > 100` aplica una comparación vectorizada sobre cada celda, generando un nuevo array booleano de la misma dimensión (`(10,)`) compuesto exclusivamente por `True` y `False`.
+* Al pasar una máscara booleana entre corchetes (`np_precios[caros]`), NumPy descarta los elementos asociados a `False` y conserva únicamente aquellos en los que la condición evaluó a `True`.
+* Invocar `.sum()` sobre un array lógico realiza una coerción implícita de tipo: cada `True` aporta $1$ y cada `False` aporta $0$, totalizando de forma inmediata las 4 referencias que superan el umbral.
+* Dado que `np_unidades`, `np_precios` e `importes` conservan la misma longitud y relación posicional $1:1$, la máscara calculada sobre precios puede aplicarse directamente a `importes[caros]`, totalizando exactamente los 1 254,00 € requeridos ($279{,}00 + 298{,}00 + 438{,}00 + 239{,}00$).
+* `np.where(caros)` devuelve una tupla con los índices enteros de las posiciones donde la condición es cierta (`[1, 3, 6, 9]`), útil cuando se requiere el ordinal y no solo el dato filtrado.
+* **Tip (Indexación booleana cruzada):** La correspondencia de dimensiones en arrays de NumPy permite reutilizar una misma condición lógica sobre cualquier otra columna de la matriz sin necesidad de recalcular los predicados ni utilizar bucles `for`.
+* ⚠️ **Trampa técnica:** Intentar combinar arrays mediante `and` o `or` (`np_precios > 100 and np_unidades >= 2`) arrojará un error bloqueante `ValueError: The truth value of an array with more than one element is ambiguous`. En arrays siempre deben usarse los operadores a nivel de bit (`&`, `|`, `~`) y envolver **cada condición entre paréntesis**, ya que el operador `&` tiene mayor precedencia sintáctica que `>` y `np_precios > 100 & np_unidades >= 2` intentaría resolver primero `100 & np_unidades`.
+
+**Comentario:**
+Generé una máscara booleana a partir de una evaluación escalar vectorizada sobre los precios y aproveché la coerción nativa de `bool` a entero para cuantificar los casos positivos mediante `.sum()`. Reutilicé el vector lógico resultante para extraer directamente los importes equivalentes sobre un array homólogo, validando la facturación agrupada de las referencias superiores a 100 €. Localicé las coordenadas posicionales de los registros con `np.where()` y construí un filtro compuesto aplicando el operador de bits `&` con encapsulamiento de expresiones por paréntesis para evitar desajustes de precedencia en la evaluación lógica.
+
+![Ejercicio 9 en JupyterLab](images/e09.png)
+
+---
+
+### Ejercicio 10 — Matriz de ventas por trimestre y región
+
+```python
+import numpy as np
+
+# Filas: T1, T2, T3  |  Columnas: Norte, Sur, Este, Oeste, Centro
+ventas_2d = np.array([
+    [15200.50, 11800.25, 12950.00,  9870.40, 13400.10],
+    [16840.75, 12310.60, 13480.90, 11020.35, 14100.80],
+    [12535.72, 10663.06, 11221.59, 12673.08, 12334.38],
+])
+
+```
+
+**Se pide:**
+1. Imprime `shape`, `ndim` y `size` del array y explica qué representa cada uno en este contexto de negocio.
+2. Extrae la fila del segundo trimestre y la columna de la región Centro.
+3. Obtén el valor de T3 en la región Este mediante indexación 2D.
+4. Extrae con *slicing* la submatriz de T1 y T2 para las tres primeras regiones.
+5. Calcula el total por trimestre (`axis=1`) y el total por región (`axis=0`).
+6. Aplica una previsión de crecimiento del 6 % a T3 sumando el resultado como una cuarta fila con `np.vstack()`.
+7. Identifica la región con mayor facturación acumulada usando `np.argmax()` sobre los totales por región, y traduce el índice a nombre con una lista de etiquetas.
+
+* **Técnicas:** Propiedades estructurales de matrices (`.shape`, `.ndim`, `.size`), indexación matricial bidimensional por coordenadas `[fila, columna]`, *slicing* de submatrices, agregación direccional por ejes (`axis=0` y `axis=1`), apilamiento vertical con `np.vstack()`, y localización de máximos con `np.argmax()`.
+
+**SOLUCION:**
+```python
+import numpy as np
+
+ventas_2d = np.array([
+    [15200.50, 11800.25, 12950.00,  9870.40, 13400.10],
+    [16840.75, 12310.60, 13480.90, 11020.35, 14100.80],
+    [12535.72, 10663.06, 11221.59, 12673.08, 12334.38],
+])
+
+# 1. Propiedades estructurales y significado de negocio
+print(f"Punto 1 - Shape (dimensiones): {ventas_2d.shape}")  # (3 filas, 5 columnas)
+print(f"Punto 1 - Ndim (nº ejes)     : {ventas_2d.ndim}")   # 2 (matriz 2D tabular)
+print(f"Punto 1 - Size (total celdas): {ventas_2d.size}")    # 15 celdas totales
+
+# Explicación Punto 1: 'shape' indica que hay 3 periodos trimestrales y 5 regiones comerciales; 
+# 'ndim' confirma la estructura bidimensional de filas y columnas; 'size' computa el total de registros numéricos almacenados (3 * 5 = 15).
+
+# 2. Extracción de fila T2 y columna Centro
+fila_t2 = ventas_2d[1, :]      # Fila índice 1 (segundo trimestre), todas las columnas
+col_centro = ventas_2d[:, 4]   # Todas las filas, columna índice 4 (Centro)
+print(f"Punto 2 - Ventas T2 completo: {fila_t2}")
+print(f"Punto 2 - Ventas región Centro: {col_centro}")
+
+# 3. Valor puntual de T3 en la región Este (Fila 2, Columna 2)
+val_t3_este = ventas_2d[2, 2]
+print(f"Punto 3 - Ventas T3 en Este: {val_t3_este} €")
+
+# 4. Slicing de la submatriz T1-T2 (filas 0 a 1) y tres primeras regiones (columnas 0 a 2)
+submatriz_t1_t2 = ventas_2d[0:2, 0:3]
+print(f"Punto 4 - Submatriz T1-T2 (Norte, Sur, Este):\n{submatriz_t1_t2}")
+
+# 5. Agregaciones por eje: total por trimestre (axis=1) y por región (axis=0)
+totales_trimestre = np.sum(ventas_2d, axis=1)  # Colapsa columnas, suma horizontal por filas
+totales_region = np.sum(ventas_2d, axis=0)     # Colapsa filas, suma vertical por columnas
+print(f"Punto 5 - Facturación total por trimestre: {totales_trimestre}")
+print(f"Punto 5 - Facturación total por región    : {totales_region}")
+
+# 6. Previsión del 6% en T3 y ampliación de matriz con np.vstack
+t3_proyectado = ventas_2d[2] * 1.06
+ventas_ampliada = np.vstack([ventas_2d, t3_proyectado])
+print(f"Punto 6 - Matriz ampliada (4 trimestres):\n{ventas_ampliada}")
+
+# 7. Identificación de la región líder con np.argmax y etiquetado
+etiquetas_regiones = ["Norte", "Sur", "Este", "Oeste", "Centro"]
+indice_lider = np.argmax(totales_region)
+region_lider = etiquetas_regiones[indice_lider]
+print(f"Punto 7 - Índice de región con mayor facturación: {indice_lider}")
+print(f"Punto 7 - Región con mayor facturación acumulada: {region_lider}")
+
+```
+
+**Explicación:**
+* La propiedad `.shape` devuelve la tupla `(3, 5)` que estructura formalmente las 3 filas (trimestres) y 5 columnas (regiones geográficas); `.ndim` ratifica la naturaleza bidimensional y `.size` el volumen de celdas de la matriz.
+* La indexación cruzada `[1, :]` aísla de forma completa el segundo trimestre, mientras que `[:, 4]` extrae los registros de la quinta columna correspondiente a la región Centro.
+* El acceso estricto `[2, 2]` recupera el importe puntual correspondiente al tercer trimestre (`T3`, índice 2) y la tercera región (`Este`, índice 2 basándose en el orden Norte, Sur, Este, Oeste, Centro).
+* El *slicing* bidimensional `[0:2, 0:3]` recorta el cuadrante superior izquierdo, seleccionando las filas 0 y 1 junto con las columnas 0, 1 y 2 (excluyendo los límites superiores).
+* El parámetro `axis=1` en `np.sum()` opera horizontalmente colapsando columnas para obtener la suma de cada trimestre; `axis=0` opera verticalmente sumando los flujos por columna para consolidar el acumulado por región.
+* `np.vstack()` requiere recibir una secuencia de arrays con idéntica dimensión de columnas; al pasarle la lista `[ventas_2d, t3_proyectado]`, anexa la nueva fila de previsión en el extremo inferior de la matriz.
+* `np.argmax()` examina el array unidimensional de totales regionales y devuelve el índice entero de la posición con mayor valor numérico, el cual se cruza con la lista de etiquetas para arrojar comercialmente a la región líder.
+* **Tip (Sentido de los ejes en NumPy 2D):** Recuerda que `axis=0` recorre las filas hacia abajo (agrupando por columnas) y `axis=1` recorre las columnas hacia los lados (agrupando por filas). Un truco mnemotécnico es pensar que el eje que especificas es el que *"desaparece"* tras la operación de agregación.
+* ⚠️ **Trampa técnica:** Al usar `np.vstack([array, nueva_fila])`, la nueva fila debe tener exactamente el mismo número de columnas que la matriz base (en este caso 5); si se omite un corchete o se intenta apilar un array con dimensiones incompatibles, se genera un error de alineación `ValueError: all the input array dimensions except for the concatenation axis must match exactly`.
+
+**Comentario:**
+Analicé la estructura geométrica de las operaciones matriciales empleando las propiedades descriptivas `.shape`, `.ndim` y `.size`. Apliqué indexación bidimensional estricta y *slicing* de rangos para aislar tanto celdas individuales como subconjuntos analíticos de trimestres y regiones. Calculé las agregaciones marginales de negocio mediante la gestión correcta de los ejes con `axis=0` y `axis=1`, extendí la serie temporal proyectando un incremento porcentual con `np.vstack()` y traduje el resultado posicional devuelto por `np.argmax()` al contexto nominal de las regiones comerciales.
+
+![Ejercicio 10 en JupyterLab](images/e10.png)
+
+---
+
+### Ejercicio 11 — Estadística descriptiva sobre telemetría simulada
+
+**Se pide:**
+1. Genera con `rng = np.random.default_rng(2024)` dos arrays de 500 elementos: `temperatura` con `rng.normal(68, 6.5, 500)` y `vibracion` con `np.abs(rng.normal(2.4, 0.8, 500))`.
+2. Calcula media, mediana, desviación típica, mínimo y máximo de temperatura. Compara media y mediana y razona en una frase qué indica la diferencia.
+3. Calcula los percentiles 25, 50, 75 y 95 de vibracion con `np.percentile()`.
+4. Apila ambos arrays en una matriz de forma `(500, 2)` con `np.column_stack()` y verifica el `shape`.
+5. Calcula la matriz de correlación con `np.corrcoef()` y explica en una frase si existe relación lineal entre temperatura y vibración en estos datos simulados.
+6. Define `umbral = media + 2 * desviación` de la temperatura, cuenta cuántas lecturas lo superan y calcula qué porcentaje del total representan.
+7. Explica en **dos frases** por qué fijar la semilla (`default_rng(2024)`) es imprescindible para que un análisis sea reproducible por un tercero.
+
+* **Técnicas:** Generación pseudoaleatoria avanzada (`np.random.default_rng`), funciones estadísticas de agregación (`np.mean`, `np.median`, `np.std`, `np.min`, `np.max`), cálculo de percentiles (`np.percentile`), apilamiento de vectores columna (`np.column_stack()`), matriz de correlación bivariada (`np.corrcoef`), filtrado booleano por umbrales estadísticos y control de reproducibilidad.
+
+**SOLUCION:**
+```python
+import numpy as np
+
+# 1. Generación de datos con generador aleatorio moderno y semilla fija
+rng = np.random.default_rng(2024)
+temperatura = rng.normal(68, 6.5, 500)
+vibracion = np.abs(rng.normal(2.4, 0.8, 500))
+
+# 2. Estadísticas descriptivas de temperatura
+media_t = np.mean(temperatura)
+mediana_t = np.median(temperatura)
+std_t = np.std(temperatura)
+min_t = np.min(temperatura)
+max_t = np.max(temperatura)
+
+print(f"Punto 2 - Temperatura | Media: {media_t:.2f} | Mediana: {mediana_t:.2f} | Desv.Est: {std_t:.2f} | Mín: {min_t:.2f} | Máx: {max_t:.2f}")
+# Explicación Punto 2: La similitud casi exacta entre la media y la mediana indica que la distribución es simétrica y carece de sesgos o valores atípicos severos.
+
+# 3. Percentiles de vibración (25, 50, 75 y 95)
+p25, p50, p75, p95 = np.percentile(vibracion, [25, 50, 75, 95])
+print(f"Punto 3 - Percentiles Vibración (P25, P50, P75, P95): {p25:.2f}, {p50:.2f}, {p75:.2f}, {p95:.2f}")
+
+# 4. Apilamiento vertical de arrays en matriz bidimensional (500, 2)
+matriz_telemetria = np.column_stack((temperatura, vibracion))
+print(f"Punto 4 - Shape de la matriz apilada: {matriz_telemetria.shape}")
+
+# 5. Matriz de correlación bivariada
+matriz_corr = np.corrcoef(temperatura, vibracion)
+coef_corr = matriz_corr[0, 1]
+print(f"Punto 5 - Coeficiente de correlación lineal: {coef_corr:.4f}")
+# Explicación Punto 5: El coeficiente de correlación cercano a cero indica que no existe relación lineal apreciable entre la temperatura y la vibración simuladas de forma independiente.
+
+# 6. Cálculo de umbral estadístico (Media + 2 Desviaciones) y porcentaje de anomalías
+umbral = media_t + 2 * std_t
+lecturas_criticas = np.sum(temperatura > umbral)
+porcentaje_critico = round((lecturas_criticas / len(temperatura)) * 100, 2)
+
+print(f"Punto 6 - Umbral de alerta (>media + 2σ): {umbral:.2f} °C")
+print(f"Punto 6 - Lecturas que superan el umbral: {lecturas_criticas} de {len(temperatura)}")
+print(f"Punto 6 - Porcentaje de anomalías: {porcentaje_critico} %")
+
+# 7. Explicación teórica de la reproducibilidad (dos frases estrictas):
+# Fijar la semilla inicializa el generador pseudoaleatorio en un estado determinista idéntico, 
+# garantizando que cualquier investigador obtenga exactamente la misma secuencia de muestras en ejecuciones futuras.
+
+```
+
+**Explicación:**
+* `np.random.default_rng(2024)` instancia el generador de números aleatorios moderno recomendado en NumPy, superando al modelo tradicional `np.random.seed()` por su mayor robustez estadística.
+* `np.abs(rng.normal(...))` modela una distribución de vibraciones rectificando los valores negativos hacia el tramo positivo absoluto.
+* La comparación entre `np.mean()` y `np.median()` valida la simetría de la distribución gaussiana generada.
+* `np.column_stack()` alinea dos vectores unidimensionales de longitud 500 convirtiéndolos en una matriz matricial de columnas paralelas con forma `(500, 2)`.
+* `np.corrcoef()` computa la matriz de covarianza normalizada; un valor cercano a $0$ descarta dependencia lineal directa entre ambas variables físicas.
+* El filtrado dinámico mediante el umbral paramétrico $\mu + 2\sigma$ aísla las observaciones extremas (típicamente cercanas al 2.5% superior en distribuciones normales), cuantificando su proporción sobre el total de la muestra.
+* **Tip (Uso de `default_rng` frente a `random.seed`):** En entornos de producción y análisis modernos, `default_rng()` aísla el estado del generador en un objeto local, evitando efectos colaterales indeseados si se ejecutan múltiples procesos concurrentes de simulación.
+* ⚠️ **Trampa técnica:** Confundir `np.percentile()` con `np.quantile()` no altera los resultados numéricos (ambas aceptan los mismos cortes, pero la primera recibe porcentajes de 0 a 100 y la segunda fracciones de 0.0 a 1.0); usar sintaxis de fracciones en `np.percentile([0.25, 0.5])` devolverá valores erróneos cercanos a cero.
+
+![Ejercicio 11 en JupyterLab](images/e11.png)
